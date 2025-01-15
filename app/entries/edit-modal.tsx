@@ -25,6 +25,8 @@ interface EditModalProps {
 export function EditModal({ expense, open, onOpenChange, onSave }: EditModalProps) {
   const [formData, setFormData] = useState<Partial<Expense>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     if (expense) {
@@ -39,11 +41,28 @@ export function EditModal({ expense, open, onOpenChange, onSave }: EditModalProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setError(null)
+    setSuccess(null)
+
+    if (!formData.amount || formData.amount <= 0) {
+      setError('Bitte geben Sie einen gültigen Betrag ein.')
+      setIsSubmitting(false)
+      return
+    }
+
+    if (!formData.category) {
+      setError('Bitte wählen Sie eine Kategorie aus.')
+      setIsSubmitting(false)
+      return
+    }
+
     try {
       await onSave(formData)
+      setSuccess('Ausgabe erfolgreich aktualisiert.')
       onOpenChange(false)
     } catch (error) {
       console.error('Failed to update expense:', error)
+      setError('Fehler beim Aktualisieren der Ausgabe.')
     } finally {
       setIsSubmitting(false)
     }
@@ -56,6 +75,8 @@ export function EditModal({ expense, open, onOpenChange, onSave }: EditModalProp
           <DialogTitle>Ausgabe bearbeiten</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <div className="text-red-500">{error}</div>}
+          {success && <div className="text-green-500">{success}</div>}
           <div className="space-y-2">
             <Label htmlFor="amount">Betrag (€)</Label>
             <Input

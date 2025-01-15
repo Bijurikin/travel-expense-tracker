@@ -10,6 +10,7 @@ import { useState, useEffect } from "react"
 import { useExpenseStore } from '@/lib/store'
 import { EditModal } from "./edit-modal"
 import { Expense } from "@/lib/api"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 
 const MotionDiv = motion.div
 const MotionTr = motion.tr
@@ -19,6 +20,8 @@ export default function EntriesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchExpenses().finally(() => setIsLoading(false))
@@ -33,19 +36,34 @@ export default function EntriesPage() {
 
   const handleUpdate = async (updatedData: Partial<Expense>) => {
     if (editingExpense?.id) {
-      await updateExpense(editingExpense.id, updatedData)
-      setEditingExpense(null)
+      try {
+        await updateExpense(editingExpense.id, updatedData)
+        setEditingExpense(null)
+      } catch (error) {
+        console.error('Failed to update expense:', error)
+        alert('Fehler beim Aktualisieren der Ausgabe.')
+      }
     }
   }
 
   const handleDelete = async (id: string) => {
-    setDeletingId(id)
-    try {
-      await deleteExpense(id)
-    } catch (error) {
-      console.error('Failed to delete expense:', error)
-    } finally {
-      setDeletingId(null)
+    setShowDeleteDialog(true)
+    setDeleteId(id)
+  }
+
+  const confirmDelete = async () => {
+    if (deleteId) {
+      setDeletingId(deleteId)
+      try {
+        await deleteExpense(deleteId)
+      } catch (error) {
+        console.error('Failed to delete expense:', error)
+        alert('Fehler beim Löschen der Ausgabe.')
+      } finally {
+        setDeletingId(null)
+        setShowDeleteDialog(false)
+        setDeleteId(null)
+      }
     }
   }
 
@@ -167,6 +185,24 @@ export default function EntriesPage() {
         onOpenChange={(open) => !open && setEditingExpense(null)}
         onSave={handleUpdate}
       />
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ausgabe löschen</DialogTitle>
+            <DialogDescription>
+              Sind Sie sicher, dass Sie diese Ausgabe löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              Löschen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MotionDiv>
   )
 }

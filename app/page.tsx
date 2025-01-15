@@ -6,20 +6,69 @@ import { PlusCircle } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useExpenseStore } from '@/lib/store';
-import { useEffect } from 'react';
+import { useEffect, useReducer } from 'react';
 import { motion } from 'framer-motion';
 import { ExpenseAnalytics } from "@/components/dashboard/expense-analytics";
+import { Loader2 } from "lucide-react";
 
 const MotionDiv = motion.div;
 
 const fallbackImageUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN88B8AAsUB4ZtvXtIAAAAASUVORK5CYII=";
 
+const initialState = {
+  expenses: [],
+  isLoading: true,
+  error: null,
+};
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'FETCH_SUCCESS':
+      return {
+        ...state,
+        expenses: action.payload,
+        isLoading: false,
+      };
+    case 'FETCH_ERROR':
+      return {
+        ...state,
+        error: action.payload,
+        isLoading: false,
+      };
+    default:
+      return state;
+  }
+}
+
 export default function Home() {
-  const { expenses, fetchExpenses } = useExpenseStore();
+  const { fetchExpenses } = useExpenseStore();
+  const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    fetchExpenses();
+    fetchExpenses()
+      .then((expenses) => {
+        dispatch({ type: 'FETCH_SUCCESS', payload: expenses });
+      })
+      .catch((error) => {
+        dispatch({ type: 'FETCH_ERROR', payload: error.message });
+      });
   }, [fetchExpenses]);
+
+  if (state.isLoading) {
+    return (
+      <div className="container py-10 flex justify-center items-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (state.error) {
+    return (
+      <div className="container py-10 flex justify-center items-center min-h-[400px]">
+        <p className="text-red-500">{state.error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-10">
@@ -33,7 +82,7 @@ export default function Home() {
         </Link>
       </div>
 
-      {expenses.length === 0 ? (
+      {state.expenses.length === 0 ? (
         <Card className="w-full">
           <CardHeader>
             <CardTitle>Keine Einträge vorhanden</CardTitle>
@@ -52,7 +101,7 @@ export default function Home() {
         </Card>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {expenses.map((expense) => (
+          {state.expenses.map((expense) => (
             <MotionDiv
               key={expense.id}
               initial={{ opacity: 0, y: 20 }}
@@ -96,7 +145,7 @@ export default function Home() {
         </div>
       )}
 
-      {expenses.length > 0 && <ExpenseAnalytics />}
+      {state.expenses.length > 0 && <ExpenseAnalytics />}
     </div>
   );
 }

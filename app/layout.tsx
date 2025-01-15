@@ -34,10 +34,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="relative flex min-h-screen flex-col items-center">
+          <div className="relative flex min-h-screen flex-col items-center" role="main">
             <div className="w-full max-w-5xl">
               <SiteHeader />
-              <main className="flex-1">{children}</main>
+              <main className="flex-1" tabIndex={-1}>
+                {children}
+              </main>
             </div>
           </div>
         </ThemeProvider>

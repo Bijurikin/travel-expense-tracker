@@ -17,6 +17,7 @@ import { format } from "date-fns"
 import { de } from "date-fns/locale"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import imageCompression from 'browser-image-compression'
 
 const MotionDiv = motion.div
 
@@ -52,30 +53,48 @@ export default function UploadPage() {
     image: '',
     date: new Date()
   })
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   // Separate refs for camera and file inputs
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Replace the single handleImageChange with:
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPreview(reader.result as string)
+      try {
+        const compressedFile = await imageCompression(file, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true
+        })
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          setPreview(reader.result as string)
+        }
+        reader.readAsDataURL(compressedFile)
+      } catch (error) {
+        console.error('Failed to compress image:', error)
+        setError('Fehler beim Komprimieren des Bildes.')
       }
-      reader.readAsDataURL(file)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setError(null)
+    setSuccess(null)
     
     try {
+      if (!formData.amount || parseFloat(formData.amount) <= 0) {
+        throw new Error('Bitte geben Sie einen gültigen Betrag ein.')
+      }
+
       if (!formData.category) {
-        throw new Error('Bitte wählen Sie eine Kategorie aus')
+        throw new Error('Bitte wählen Sie eine Kategorie aus.')
       }
 
       const newExpense = {
@@ -89,10 +108,11 @@ export default function UploadPage() {
       console.log('Submitting expense:', newExpense) // Debug log
       
       await addExpense(newExpense)
+      setSuccess('Ausgabe erfolgreich gespeichert.')
       router.push('/entries')
     } catch (error) {
       console.error('Failed to save expense:', error)
-      alert('Fehler beim Speichern der Ausgabe')
+      setError(error.message || 'Fehler beim Speichern der Ausgabe.')
     } finally {
       setIsSubmitting(false)
     }
@@ -116,6 +136,8 @@ export default function UploadPage() {
           </CardHeader>
           <CardContent>
             <form className="space-y-6" onSubmit={handleSubmit}>
+              {error && <div className="text-red-500">{error}</div>}
+              {success && <div className="text-green-500">{success}</div>}
               <MotionDiv
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
