@@ -1,22 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { motion } from "framer-motion"
+import { HomeIcon, ListTodo, PlusCircle, Sun, Moon } from "lucide-react"
 import { ModeToggle } from "./mode-toggle"
 import { Button } from "./ui/button"
-import { HomeIcon, ListTodo, PlusCircle, Sun, Moon } from "lucide-react"
 import { useTheme } from "next-themes"
 
-const navItems = [
-  { href: "/", label: "Dashboard" },
-  { href: "/upload", label: "Hochladen" },
-  { href: "/entries", label: "Übersicht" },
-]
-
 export function SiteHeader() {
-  const pathname = usePathname()
   const { setTheme, theme } = useTheme()
 
   return (

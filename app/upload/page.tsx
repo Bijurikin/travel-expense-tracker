@@ -10,8 +10,8 @@ import { useState, useRef, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Loader2, Camera, Upload } from "lucide-react"
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
 import { useExpenseStore } from '@/lib/store'
+import Image from 'next/image'
 
 const MotionDiv = motion.div
 
@@ -165,7 +165,14 @@ export default function UploadPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-2"
                   >
-                    <img src={preview} alt="Preview" className="max-h-48 rounded" />
+                    <div className="relative h-48">
+                      <Image 
+                        src={preview} 
+                        alt="Preview" 
+                        fill
+                        className="object-contain rounded"
+                      />
+                    </div>
                   </MotionDiv>
                 )}
               </MotionDiv>

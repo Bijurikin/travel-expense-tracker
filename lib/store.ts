@@ -22,6 +22,7 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
       const expenses = await api.getExpenses();
       set({ expenses, error: null });
     } catch (error) {
+      console.error('Error fetching expenses:', error);
       set({ error: 'Failed to fetch expenses' });
     } finally {
       set({ isLoading: false });
@@ -37,6 +38,7 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
         error: null
       }));
     } catch (error) {
+      console.error('Error adding expense:', error);
       set({ error: 'Failed to add expense' });
     } finally {
       set({ isLoading: false });
@@ -52,6 +54,7 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
         error: null
       }));
     } catch (error) {
+      console.error('Error updating expense:', error);
       set({ error: 'Failed to update expense' });
     } finally {
       set({ isLoading: false });
@@ -67,6 +70,7 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
         error: null
       }));
     } catch (error) {
+      console.error('Error deleting expense:', error);
       set({ error: 'Failed to delete expense' });
     } finally {
       set({ isLoading: false });

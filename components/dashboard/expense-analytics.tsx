@@ -4,8 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   PieChart, Pie, ResponsiveContainer, Cell, Legend, Tooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  LineChart, Line 
+  LineChart, Line, XAxis, YAxis, CartesianGrid
 } from "recharts"
 import { useExpenseStore } from "@/lib/store"
 import {
