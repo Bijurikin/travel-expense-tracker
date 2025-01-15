@@ -23,7 +23,7 @@ A modern web application for tracking travel expenses with image receipts, built
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/travel-expense-tracker.git
+git clone https://github.com/bijurikin/travel-expense-tracker.git
 cd travel-expense-tracker
 ```
 
@@ -46,6 +46,8 @@ npm run dev
 ```
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+> **Customization:** The default logo can be replaced by adding your own logo file to `/public/images/` and updating the reference in the Header component.
 
 ## Project Structure
 
