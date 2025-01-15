@@ -85,60 +85,62 @@ export function ExpenseAnalytics() {
     const now = new Date()
     let start: Date
     let end: Date
-    let interval: 'day' | 'week' | 'month'
 
     switch (range) {
       case 'week':
-        // Änderung hier: Wochenstart auf Montag setzen
         start = startOfWeek(now, { locale: de, weekStartsOn: 1 })
         end = endOfWeek(now, { locale: de, weekStartsOn: 1 })
-        interval = 'day'
-        break
+        return eachDayOfInterval({ start, end }).map(date => ({
+          date: format(date, 'EEEEEE', { locale: de }), // Kurzform des Wochentags
+          amount: getAmountForDate(date)
+        }))
       case 'month':
         start = startOfMonth(now)
         end = endOfMonth(now)
-        interval = 'week'
-        break
+        return eachWeekOfInterval({ start, end }, { weekStartsOn: 1 }).map(weekStart => ({
+          date: `KW ${format(weekStart, 'w')}`,
+          amount: expenses
+            .filter(expense => {
+              const expenseDate = new Date(expense.date)
+              return isWithinInterval(expenseDate, {
+                start: weekStart,
+                end: endOfWeek(weekStart, { weekStartsOn: 1 })
+              })
+            })
+            .reduce((sum, expense) => sum + expense.amount, 0)
+        }))
       case 'year':
         start = startOfYear(now)
         end = endOfYear(now)
-        interval = 'month'
-        break
+        return eachMonthOfInterval({ start, end }).map(monthStart => ({
+          date: format(monthStart, 'MMM', { locale: de }),
+          amount: expenses
+            .filter(expense => {
+              const expenseDate = new Date(expense.date)
+              return isWithinInterval(expenseDate, {
+                start: monthStart,
+                end: endOfMonth(monthStart)
+              })
+            })
+            .reduce((sum, expense) => sum + expense.amount, 0)
+        }))
       default:
-        start = startOfWeek(now, { locale: de })
-        end = endOfWeek(now, { locale: de })
-        interval = 'day'
+        return []
     }
+  }
 
-    const getIntervalPoints = () => {
-      switch (interval) {
-        case 'day':
-          return eachDayOfInterval({ start, end }).map(date => ({
-            date: format(date, 'EEEEEE', { locale: de }), // Kurzform des Wochentags
-            amount: getAmountForDate(date)
-          }))
-        case 'week':
-          return eachWeekOfInterval({ start, end })
-        case 'month':
-          return eachMonthOfInterval({ start, end })
-      }
-    }
-
-    // Neue Hilfsfunktion zur Berechnung der Ausgaben pro Tag
-    const getAmountForDate = (date: Date) => {
-      return expenses
-        .filter(expense => {
-          const expenseDate = new Date(expense.date)
-          return (
-            expenseDate.getFullYear() === date.getFullYear() &&
-            expenseDate.getMonth() === date.getMonth() &&
-            expenseDate.getDate() === date.getDate()
-          )
-        })
-        .reduce((sum, expense) => sum + expense.amount, 0)
-    }
-
-    return getIntervalPoints()
+  // Hilfsfunktion zur Berechnung der Ausgaben pro Tag
+  const getAmountForDate = (date: Date) => {
+    return expenses
+      .filter(expense => {
+        const expenseDate = new Date(expense.date)
+        return (
+          expenseDate.getFullYear() === date.getFullYear() &&
+          expenseDate.getMonth() === date.getMonth() &&
+          expenseDate.getDate() === date.getDate()
+        )
+      })
+      .reduce((sum, expense) => sum + expense.amount, 0)
   }
 
   return (

@@ -8,10 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useState, useRef, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Loader2, Camera, Upload } from "lucide-react"
+import { Loader2, Camera, Upload, CalendarIcon } from "lucide-react"
 import { useRouter } from 'next/navigation'
 import { useExpenseStore } from '@/lib/store'
 import Image from 'next/image'
+import { Calendar } from "@/components/ui/calendar"
+import { format } from "date-fns"
+import { de } from "date-fns/locale"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
 
 const MotionDiv = motion.div
 
@@ -44,7 +49,8 @@ export default function UploadPage() {
     amount: '',
     category: '',
     description: '',
-    image: ''
+    image: '',
+    date: new Date()
   })
 
   // Separate refs for camera and file inputs
@@ -77,7 +83,7 @@ export default function UploadPage() {
         category: formData.category,
         description: formData.description,
         image: preview || '',
-        date: new Date().toISOString()
+        date: formData.date.toISOString()
       }
 
       console.log('Submitting expense:', newExpense) // Debug log
@@ -176,6 +182,33 @@ export default function UploadPage() {
                   </MotionDiv>
                 )}
               </MotionDiv>
+
+              <div className="space-y-2">
+                <Label htmlFor="date">Datum</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.date ? format(formData.date, "PPP", { locale: de }) : <span>Datum wählen</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={formData.date}
+                      onSelect={(date) => setFormData(prev => ({ ...prev, date: date || new Date() }))}
+                      initialFocus
+                      locale={de}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="amount">Betrag (€)</Label>
