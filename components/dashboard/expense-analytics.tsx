@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   PieChart, Pie, ResponsiveContainer, Cell, Legend, Tooltip,
-  LineChart, Line, XAxis, YAxis, CartesianGrid
+  LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar
 } from "recharts"
 import { useExpenseStore } from "@/lib/store"
 import {
@@ -272,6 +272,26 @@ export function ExpenseAnalytics() {
                           dot={{ r: 4 }}
                         />
                       </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Neue Balkendiagramm-Visualisierung */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Ausgaben nach Kategorie</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={getCategoryData(range)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip 
+                          formatter={(value: number) => [`${value.toFixed(2)} €`, "Betrag"]}
+                        />
+                        <Bar dataKey="value" fill="#82ca9d" />
+                      </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>

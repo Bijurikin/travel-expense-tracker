@@ -13,7 +13,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useState, useEffect } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, Briefcase, Home, Utensils, MoreHorizontal } from "lucide-react"
+import { motion } from "framer-motion"
 
 interface EditModalProps {
   expense: Expense | null
@@ -79,10 +80,22 @@ export function EditModal({ expense, open, onOpenChange, onSave }: EditModalProp
                 <SelectValue placeholder="Kategorie wählen" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="travel">Reise</SelectItem>
-                <SelectItem value="accommodation">Unterkunft</SelectItem>
-                <SelectItem value="food">Verpflegung</SelectItem>
-                <SelectItem value="other">Sonstiges</SelectItem>
+                <SelectItem value="travel">
+                  <Briefcase className="mr-2 h-4 w-4" />
+                  Reise
+                </SelectItem>
+                <SelectItem value="accommodation">
+                  <Home className="mr-2 h-4 w-4" />
+                  Unterkunft
+                </SelectItem>
+                <SelectItem value="food">
+                  <Utensils className="mr-2 h-4 w-4" />
+                  Verpflegung
+                </SelectItem>
+                <SelectItem value="other">
+                  <MoreHorizontal className="mr-2 h-4 w-4" />
+                  Sonstiges
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -97,19 +110,23 @@ export function EditModal({ expense, open, onOpenChange, onSave }: EditModalProp
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Abbrechen
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Speichern...
-                </>
-              ) : (
-                'Speichern'
-              )}
-            </Button>
+            <motion.div whileHover={{ scale: 1.05 }}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Abbrechen
+              </Button>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }}>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Speichern...
+                  </>
+                ) : (
+                  'Speichern'
+                )}
+              </Button>
+            </motion.div>
           </div>
         </form>
       </DialogContent>

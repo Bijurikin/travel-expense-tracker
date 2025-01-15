@@ -52,6 +52,13 @@ export default function UploadPage() {
     image: '',
     date: new Date()
   })
+  const [errors, setErrors] = useState({
+    amount: '',
+    category: '',
+    description: '',
+    image: '',
+    date: ''
+  })
 
   // Separate refs for camera and file inputs
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -69,15 +76,42 @@ export default function UploadPage() {
     }
   }
 
+  const validateForm = () => {
+    const newErrors = {
+      amount: '',
+      category: '',
+      description: '',
+      image: '',
+      date: ''
+    }
+
+    if (!formData.amount) {
+      newErrors.amount = 'Bitte geben Sie einen Betrag ein'
+    }
+
+    if (!formData.category) {
+      newErrors.category = 'Bitte wählen Sie eine Kategorie aus'
+    }
+
+    if (!formData.date) {
+      newErrors.date = 'Bitte wählen Sie ein Datum aus'
+    }
+
+    setErrors(newErrors)
+
+    return !Object.values(newErrors).some(error => error)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     
-    try {
-      if (!formData.category) {
-        throw new Error('Bitte wählen Sie eine Kategorie aus')
-      }
+    if (!validateForm()) {
+      setIsSubmitting(false)
+      return
+    }
 
+    try {
       const newExpense = {
         amount: parseFloat(formData.amount),
         category: formData.category,
@@ -208,6 +242,7 @@ export default function UploadPage() {
                     />
                   </PopoverContent>
                 </Popover>
+                {errors.date && <p className="text-red-500 text-sm">{errors.date}</p>}
               </div>
 
               <div className="space-y-2">
@@ -222,6 +257,7 @@ export default function UploadPage() {
                   value={formData.amount}
                   onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
                 />
+                {errors.amount && <p className="text-red-500 text-sm">{errors.amount}</p>}
               </div>
 
               <div className="space-y-2">
@@ -237,6 +273,7 @@ export default function UploadPage() {
                     <SelectItem value="other">Sonstiges</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.category && <p className="text-red-500 text-sm">{errors.category}</p>}
               </div>
 
               <div className="space-y-2">

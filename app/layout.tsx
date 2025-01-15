@@ -4,14 +4,9 @@ import { SiteHeader } from "@/components/site-header";
 import localFont from "next/font/local";
 import "./globals.css";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
+const modernFont = localFont({
+  src: "./fonts/ModernFont.woff2",
+  variable: "--font-modern",
   weight: "100 900",
 });
 
@@ -27,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}>
+      <body className={`${modernFont.variable} antialiased min-h-screen`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
