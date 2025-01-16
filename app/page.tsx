@@ -6,6 +6,7 @@ import { PlusCircle } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useExpenseStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/auth-store';
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ExpenseAnalytics } from "@/components/dashboard/expense-analytics";
@@ -16,10 +17,18 @@ const fallbackImageUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB
 
 export default function Home() {
   const { expenses, fetchExpenses } = useExpenseStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   useEffect(() => {
-    fetchExpenses();
-  }, [fetchExpenses]);
+    console.log('Authentication state:', isAuthenticated); // Debug log
+    if (isAuthenticated) {
+      fetchExpenses();
+    }
+  }, [fetchExpenses, isAuthenticated]);
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="container py-10">
