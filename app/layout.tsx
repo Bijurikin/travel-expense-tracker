@@ -1,7 +1,6 @@
 "use client"
 
 import { ThemeProvider } from "@/components/theme-provider";
-import { SiteHeader } from "@/components/site-header";
 import { AuthProvider } from "@/components/auth-provider";
 import { Toaster } from "sonner";
 import localFont from "next/font/local";
