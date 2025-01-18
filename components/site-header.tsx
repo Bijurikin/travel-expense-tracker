@@ -6,6 +6,7 @@ import { HomeIcon, ListTodo, PlusCircle, Sun, Moon } from "lucide-react"
 import { ModeToggle } from "./mode-toggle"
 import { Button } from "./ui/button"
 import { useTheme } from "next-themes"
+import { LogoutButton } from "./logout-button"
 
 export function SiteHeader() {
   const { setTheme, theme } = useTheme()
@@ -41,8 +42,9 @@ export function SiteHeader() {
             </Link>
           </nav>
         </div>
-        <div className="hidden md:flex">
+        <div className="hidden md:flex items-center gap-2">
           <ModeToggle />
+          <LogoutButton />
         </div>
       </div>
 
@@ -75,6 +77,7 @@ export function SiteHeader() {
               <Moon className="h-5 w-5" />
             )}
           </Button>
+          <LogoutButton />
         </nav>
       </div>
     </header>

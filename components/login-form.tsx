@@ -22,16 +22,31 @@ export function LoginForm({
 }: React.ComponentPropsWithoutRef<"div">) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const login = useAuthStore((state) => state.login)
+  const [isLoading, setIsLoading] = useState(false)
+  const { login, loginWithGoogle } = useAuthStore()
   const router = useRouter()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (login(email, password)) {
-      router.push("/")
-      toast.success("Erfolgreich angemeldet")
-    } else {
-      toast.error("Ungültige Anmeldedaten")
+    setIsLoading(true)
+    try {
+      const success = await login(email, password)
+      if (success) {
+        router.push("/")
+        toast.success("Erfolgreich angemeldet")
+      } else {
+        toast.error("Ungültige Anmeldedaten")
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    try {
+      await loginWithGoogle()
+    } catch (error) {
+      toast.error("Fehler bei der Google-Anmeldung")
     }
   }
 
@@ -52,7 +67,7 @@ export function LoginForm({
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@admin"
+                  placeholder="ihre@email.de"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -76,11 +91,20 @@ export function LoginForm({
                   required
                 />
               </div>
-              <Button type="submit" className="w-full">
-                Login
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? "Wird angemeldet..." : "Login"}
               </Button>
-              <Button variant="outline" className="w-full">
-                Login with Google
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={handleGoogleLogin}
+                type="button"
+              >
+                Mit Google anmelden
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
