@@ -43,6 +43,12 @@ const useIsMobile = () => {
   return isMobile;
 };
 
+// Add this interface near the top of the file, after imports
+interface ExpenseError {
+  message: string;
+  code?: string;
+}
+
 export default function UploadPage() {
   const router = useRouter()
   const addExpense = useExpenseStore(state => state.addExpense)
@@ -124,11 +130,12 @@ export default function UploadPage() {
       setTimeout(() => {
         router.push('/entries')
       }, 2000)
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const expenseError = error as ExpenseError
       setAlert({
         type: 'error',
         message: 'Fehler beim Speichern',
-        description: error.message || 'Bitte versuchen Sie es später erneut.'
+        description: expenseError.message || 'Bitte versuchen Sie es später erneut.'
       })
     } finally {
       setIsSubmitting(false)

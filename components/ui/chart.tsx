@@ -10,7 +10,7 @@ interface ChartContainerProps {
   children: ReactNode
 }
 
-export function ChartContainer({ config, children }: ChartContainerProps) {
+export function ChartContainer({ children }: ChartContainerProps) {
   return (
     <div style={{ width: "100%", height: 350 }}>
       {children}

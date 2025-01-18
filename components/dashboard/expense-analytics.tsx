@@ -4,36 +4,16 @@ import { TrendingUp, TrendingDown } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useExpenseStore } from "@/lib/store"
-import { startOfMonth, endOfMonth, subMonths, format, startOfWeek, endOfWeek, getWeek, getISOWeek, eachDayOfInterval } from 'date-fns'
+import { startOfMonth, endOfMonth, subMonths, format, startOfWeek, endOfWeek, getISOWeek, eachDayOfInterval } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState } from "react"
-import { EXPENSE_CATEGORIES } from "@/lib/constants"
 
 type TimeFrame = 'week' | 'month' | '3months' | '6months' | '12months'
 
 export function ExpenseAnalytics() {
   const { expenses } = useExpenseStore()
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('month')
-
-  const formatCategory = (category: string) => {
-    const found = EXPENSE_CATEGORIES.find(c => c.value === category)
-    return found ? found.label : category
-  }
-
-  const formatPeriodLabel = (start: Date, end: Date, timeFrameType: TimeFrame): string => {
-    switch(timeFrameType) {
-      case 'week':
-        // Für die aktuelle Woche zeigen wir die Wochentage an
-        return `${format(start, 'EEEEEE', { locale: de })} - ${format(end, 'EEEEEE', { locale: de })}`
-      case 'month':
-        // Für den aktuellen Monat zeigen wir den Monat mit KW
-        return `${format(start, 'MMM', { locale: de })} (KW ${getISOWeek(start)})`
-      default:
-        // Für längere Zeiträume nur den Monat
-        return format(start, 'MMM', { locale: de })
-    }
-  }
 
   const getTimeFrameData = () => {
     const now = new Date()
