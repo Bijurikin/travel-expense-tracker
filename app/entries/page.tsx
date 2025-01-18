@@ -10,6 +10,9 @@ import { useState, useEffect } from "react"
 import { useExpenseStore } from '@/lib/store'
 import { EditModal } from "./edit-modal"
 import { Expense } from "@/lib/api"
+import { ImagePreview } from "@/components/ui/image-preview"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const MotionDiv = motion.div
 const MotionTr = motion.tr
@@ -19,6 +22,13 @@ export default function EntriesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [filters, setFilters] = useState({
+    search: '',
+    category: 'all',
+    startDate: '',
+    endDate: ''
+  })
 
   useEffect(() => {
     fetchExpenses().finally(() => setIsLoading(false))
@@ -49,6 +59,15 @@ export default function EntriesPage() {
     }
   }
 
+  const filteredExpenses = expenses.filter(expense => {
+    const matchesSearch = expense.description.toLowerCase().includes(filters.search.toLowerCase())
+    const matchesCategory = filters.category === 'all' || expense.category === filters.category
+    const matchesDateRange = (!filters.startDate || new Date(expense.date) >= new Date(filters.startDate)) &&
+                           (!filters.endDate || new Date(expense.date) <= new Date(filters.endDate))
+    
+    return matchesSearch && matchesCategory && matchesDateRange
+  })
+
   if (isLoading) {
     return (
       <div className="container py-10 flex justify-center items-center min-h-[400px]">
@@ -68,6 +87,50 @@ export default function EntriesPage() {
           <CardTitle>Ausgabenübersicht</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-6 grid gap-4 md:grid-cols-4">
+            <div>
+              <Input
+                placeholder="Suche nach Beschreibung..."
+                value={filters.search}
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <Select
+                value={filters.category}
+                onValueChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Kategorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle Kategorien</SelectItem>
+                  <SelectItem value="travel">Reise</SelectItem>
+                  <SelectItem value="accommodation">Unterkunft</SelectItem>
+                  <SelectItem value="food">Verpflegung</SelectItem>
+                  <SelectItem value="other">Sonstiges</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Input
+                type="date"
+                value={filters.startDate}
+                onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <Input
+                type="date"
+                value={filters.endDate}
+                onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                className="w-full"
+              />
+            </div>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -81,7 +144,7 @@ export default function EntriesPage() {
             </TableHeader>
             <TableBody>
               <AnimatePresence mode="popLayout">
-                {expenses.map((entry) => (
+                {filteredExpenses.map((entry) => (
                   <MotionTr
                     key={entry.id}
                     layout
@@ -95,6 +158,7 @@ export default function EntriesPage() {
                       <MotionDiv
                         whileHover={{ scale: 1.05 }}
                         className="h-12 w-12 relative rounded overflow-hidden cursor-pointer"
+                        onClick={() => setSelectedImage(entry.image)}
                       >
                         <Image
                           src={entry.image}
@@ -146,14 +210,14 @@ export default function EntriesPage() {
                   </MotionTr>
                 ))}
               </AnimatePresence>
-              {expenses.length === 0 && (
+              {filteredExpenses.length === 0 && (
                 <MotionTr
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.2 }}
                 >
                   <TableCell colSpan={6} className="text-center py-8">
-                    Keine Einträge vorhanden
+                    {expenses.length === 0 ? 'Keine Einträge vorhanden' : 'Keine Einträge gefunden'}
                   </TableCell>
                 </MotionTr>
               )}
@@ -166,6 +230,12 @@ export default function EntriesPage() {
         open={!!editingExpense}
         onOpenChange={(open) => !open && setEditingExpense(null)}
         onSave={handleUpdate}
+      />
+      <ImagePreview
+        src={selectedImage || ''}
+        alt="Beleg Vorschau"
+        open={!!selectedImage}
+        onOpenChange={(open) => !open && setSelectedImage(null)}
       />
     </MotionDiv>
   )
