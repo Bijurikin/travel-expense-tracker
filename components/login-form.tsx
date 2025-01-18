@@ -45,7 +45,8 @@ export function LoginForm({
   const handleGoogleLogin = async () => {
     try {
       await loginWithGoogle()
-    } catch (error) {
+    } catch (err) {  // Changed from 'error' to 'err'
+      console.error('Google login error:', err)  // Log the error
       toast.error("Fehler bei der Google-Anmeldung")
     }
   }
