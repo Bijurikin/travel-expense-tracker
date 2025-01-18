@@ -2,6 +2,15 @@ import { create } from 'zustand'
 import { supabase } from './supabase'
 import { User } from '@supabase/supabase-js'
 
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    // Browser sollte die aktuelle URL verwenden
+    return window.location.origin
+  }
+  // Verwende die konfigurierte URL oder einen Fallback
+  return process.env.NEXT_PUBLIC_SITE_URL || 'https://reisekosten.birgertech.de'
+}
+
 interface AuthState {
   isAuthenticated: boolean
   user: User | null
@@ -31,7 +40,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${getBaseUrl()}/auth/callback`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
