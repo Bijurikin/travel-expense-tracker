@@ -12,12 +12,18 @@ import { useMediaQuery } from "@/hooks/use-media-query"
 
 type TimeFrame = 'week' | 'month' | '3months' | '6months' | '12months'
 
+type TimeFrameData = {
+  start: Date;
+  end: Date;
+  label?: string;
+}
+
 export function ExpenseAnalytics() {
   const { expenses } = useExpenseStore()
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('month')
   const isMobile = useMediaQuery("(max-width: 768px)")
 
-  const getTimeFrameData = () => {
+  const getTimeFrameData = (): TimeFrameData[] => {
     const now = new Date()
     
     switch(timeFrame) {
@@ -78,7 +84,7 @@ export function ExpenseAnalytics() {
 
     return {
       month: timeFrame === 'week'
-        ? label // Use the short day name for week view
+        ? label ?? format(start, 'EEEEEE', { locale: de }) // Fallback if label is undefined
         : timeFrame === 'month'
         ? `KW ${getISOWeek(start)}` // Kalenderwoche
         : format(start, 'MMM', { locale: de }), // Monat
