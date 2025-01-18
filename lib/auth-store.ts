@@ -1,11 +1,11 @@
 import { create } from 'zustand'
 import { supabase } from './supabase'
 import { User } from '@supabase/supabase-js'
+
 interface AuthState {
   isAuthenticated: boolean
   user: User | null
-  initialized: boolean
-  initialized: boolean
+  initialized: boolean 
   login: (email: string, password: string) => Promise<boolean>
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
