@@ -1,10 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Ensure single instance
-let supabaseInstance: ReturnType<typeof createClient>
-
-if (!supabaseInstance) {
-  supabaseInstance = createClient(
+const createSupabaseClient = () => {
+  return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -12,7 +9,7 @@ if (!supabaseInstance) {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
-        flowType: 'pkce',  // Wichtig für OAuth
+        flowType: 'pkce',
         storage: {
           getItem: (key) => {
             try {
@@ -43,4 +40,5 @@ if (!supabaseInstance) {
   )
 }
 
-export const supabase = supabaseInstance
+// Global instance
+export const supabase = createSupabaseClient()

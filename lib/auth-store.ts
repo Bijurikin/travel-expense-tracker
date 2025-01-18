@@ -87,22 +87,33 @@ export const useAuthStore = create<AuthState>((set) => ({
   }
 }))
 
+// Simplified subscription type without unused import
+type AuthSubscription = {
+  data: {
+    subscription: {
+      unsubscribe: () => void;
+    };
+  };
+};
+
 // Verbessere Auth State Handling
-let currentSubscription: { unsubscribe: () => void } | null = null;
+let currentSubscription: AuthSubscription | null = null;
 
 // Cleanup und neue Subscription erstellen
 const setupAuthSubscription = () => {
   if (currentSubscription) {
-    currentSubscription.unsubscribe();
+    currentSubscription.data.subscription.unsubscribe();
   }
 
-  currentSubscription = supabase.auth.onAuthStateChange((event, session) => {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
     console.log('Auth state changed:', event, !!session);
     useAuthStore.setState({
       isAuthenticated: !!session,
       user: session?.user || null,
     });
   });
+
+  currentSubscription = { data: { subscription } };
 };
 
 // Initial setup

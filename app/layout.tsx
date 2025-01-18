@@ -1,21 +1,9 @@
-"use client"
-
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/auth-provider";
 import { Toaster } from "sonner";
-import localFont from "next/font/local";
 import "./globals.css";
-
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 
 export default function RootLayout({
   children,
@@ -23,8 +11,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}>
+    <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
+      <body className="antialiased min-h-screen">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -34,8 +22,8 @@ export default function RootLayout({
           <AuthProvider>
             {children}
           </AuthProvider>
+          <Toaster />
         </ThemeProvider>
-        <Toaster />
       </body>
     </html>
   );
