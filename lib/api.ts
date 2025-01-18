@@ -12,6 +12,7 @@ export type Expense = {
   category: string
   description?: string
   date: string
+  kilometers?: number
 }
 
 export const api = {

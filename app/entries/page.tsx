@@ -3,10 +3,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Edit2, Trash2, Loader2, CalendarIcon } from "lucide-react"
+import { Edit2, Trash2, Loader2, CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
-import { useState, useEffect } from "react"
+import { useState, useEffect, forwardRef } from "react"
 import { useExpenseStore } from '@/lib/store'
 import { EditModal } from "./edit-modal"
 import { Expense } from "@/lib/api"
@@ -28,12 +28,12 @@ import { format } from "date-fns"
 import { de } from "date-fns/locale"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { cn } from "@/lib/utils"
+import { cn, formatDate } from "@/lib/utils"
 import { useMediaQuery } from "@/hooks/use-media-query"
 
-const MotionDiv = motion.div
-const MotionTr = motion.tr
-const MotionButton = motion(Button)
+const MotionDiv = motion.create("div")
+const MotionTr = motion.create("tr")
+const MotionButton = motion.create(Button)
 
 export default function EntriesPage() {
   const { expenses, fetchExpenses, deleteExpense, updateExpense } = useExpenseStore()
@@ -49,6 +49,9 @@ export default function EntriesPage() {
   })
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null)
   const isDesktop = useMediaQuery("(min-width: 768px)")
+  const isMobile = useMediaQuery("(max-width: 768px)")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 5
 
   useEffect(() => {
     fetchExpenses().finally(() => setIsLoading(false))
@@ -159,13 +162,66 @@ export default function EntriesPage() {
     return matchesSearch && matchesCategory && matchesDateRange
   })
 
+  const paginatedExpenses = filteredExpenses.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
+  const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const PaginationControls = () => {
+    if (totalPages <= 1) return null
+
+    return (
+      <MotionDiv
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.4 }} // Added delay and increased duration
+        className="flex justify-center items-center gap-2 mt-6"
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+          <MotionButton
+            key={page}
+            variant={currentPage === page ? "default" : "outline"}
+            size="sm"
+            onClick={() => handlePageChange(page)}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            {page}
+          </MotionButton>
+        ))}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </MotionDiv>
+    )
+  }
+
   const container = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.2, // Erhöht von 0.1
-        duration: 0.8,
+        staggerChildren: 0.4, // Increased from 0.2
+        duration: 1.2, // Increased from 0.8
         ease: "easeOut"
       }
     }
@@ -177,11 +233,102 @@ export default function EntriesPage() {
       opacity: 1, 
       y: 0,
       transition: {
-        duration: 0.6,
+        duration: 0.8, // Increased from 0.6
         ease: "easeOut"
       }
     }
   }
+
+  const MobileExpenseCard = forwardRef<HTMLDivElement, { entry: Expense }>(
+    ({ entry }, ref) => (
+      <MotionDiv
+        ref={ref}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, height: 0 }}
+        transition={{ 
+          duration: 0.8, // Added explicit duration
+          ease: "easeOut"
+        }}
+        className="mb-4"
+      >
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-4">
+              <div 
+                className="h-16 w-16 relative rounded overflow-hidden cursor-pointer flex-shrink-0"
+                onClick={() => setSelectedImage(entry.image)}
+              >
+                <Image
+                  src={entry.image}
+                  alt="Beleg"
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="flex-1">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      {(() => {
+                        const category = EXPENSE_CATEGORIES.find(c => c.value === entry.category)
+                        if (category) {
+                          const Icon = category.icon
+                          return (
+                            <>
+                              <Icon className="h-4 w-4" />
+                              <span className="font-medium">{category.label}</span>
+                            </>
+                          )
+                        }
+                        return entry.category
+                      })()}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {formatDate(entry.date)}
+                    </p>
+                  </div>
+                  <p className="font-bold">{entry.amount.toFixed(2)} €</p>
+                </div>
+                {entry.description && (
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {entry.description}
+                  </p>
+                )}
+                {entry.category === 'travel' && entry.kilometers && (
+                  <p className="text-sm text-muted-foreground">
+                    {entry.kilometers.toFixed(1)} km
+                  </p>
+                )}
+                <div className="flex justify-end gap-2 mt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEdit(entry.id)}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(entry.id)}
+                    disabled={deletingId === entry.id}
+                  >
+                    {deletingId === entry.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </MotionDiv>
+    )
+  )
+  MobileExpenseCard.displayName = 'MobileExpenseCard'
 
   if (isLoading) {
     return (
@@ -195,7 +342,7 @@ export default function EntriesPage() {
     <MotionDiv
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.8 }}
+      transition={{ duration: 1.2 }} // Increased from 0.8
       className="container py-10"
     >
       <Card>
@@ -203,7 +350,7 @@ export default function EntriesPage() {
           <MotionDiv
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4, duration: 0.8 }}
+            transition={{ delay: 0.6, duration: 1 }} // Increased delay and duration
           >
             <CardTitle>Ausgabenübersicht</CardTitle>
           </MotionDiv>
@@ -272,122 +419,140 @@ export default function EntriesPage() {
             </MotionDiv>
           </MotionDiv>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Beleg</TableHead>
-                <TableHead>Datum</TableHead>
-                <TableHead>Kategorie</TableHead>
-                <TableHead>Beschreibung</TableHead>
-                <TableHead className="text-right">Betrag</TableHead>
-                <TableHead className="text-right">Aktionen</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          {isMobile ? (
+            <div className="mt-6">
               <AnimatePresence mode="popLayout">
-                {filteredExpenses.map((entry, index) => (
-                  <MotionTr
-                    key={entry.id}
-                    layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ 
-                      duration: 0.6,
-                      delay: index * 0.15, // Erhöht von 0.05
-                      ease: "easeOut"
-                    }}
-                    whileHover={{ backgroundColor: "var(--accent)", scale: 1.01 }}
-                    className="relative"
-                  >
-                    <TableCell>
-                      <MotionDiv
-                        whileHover={{ scale: 1.05 }}
-                        className="h-12 w-12 relative rounded overflow-hidden cursor-pointer"
-                        onClick={() => setSelectedImage(entry.image)}
-                      >
-                        <Image
-                          src={entry.image}
-                          alt="Beleg"
-                          fill
-                          className="object-cover"
-                        />
-                      </MotionDiv>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(entry.date).toLocaleDateString('de-DE', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const category = EXPENSE_CATEGORIES.find(c => c.value === entry.category)
-                          if (category) {
-                            const Icon = category.icon
-                            return (
-                              <>
-                                <Icon className="h-4 w-4" />
-                                {category.label}
-                              </>
-                            )
-                          }
-                          return entry.category
-                        })()}
-                      </div>
-                    </TableCell>
-                    <TableCell>{entry.description}</TableCell>
-                    <TableCell className="text-right">
-                      {entry.amount.toFixed(2)} €
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <MotionDiv 
-                        className="flex justify-end gap-2"
-                        whileHover={{ scale: 1.05 }}
-                      >
-                        <MotionButton
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(entry.id)}
-                          whileHover={{ scale: 1.1, rotate: 15 }}
-                          whileTap={{ scale: 0.9 }}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </MotionButton>
-                        <MotionDiv whileHover={{ scale: 1.1 }}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(entry.id)}
-                            disabled={deletingId === entry.id}
-                          >
-                            {deletingId === entry.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </MotionDiv>
-                      </MotionDiv>
-                    </TableCell>
-                  </MotionTr>
+                {paginatedExpenses.map((entry) => (
+                  <MobileExpenseCard key={entry.id} entry={entry} />
                 ))}
               </AnimatePresence>
               {filteredExpenses.length === 0 && (
-                <MotionTr
+                <MotionDiv
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.2 }}
+                  className="text-center py-8"
                 >
-                  <TableCell colSpan={6} className="text-center py-8">
-                    {expenses.length === 0 ? 'Keine Einträge vorhanden' : 'Keine Einträge gefunden'}
-                  </TableCell>
-                </MotionTr>
+                  {expenses.length === 0 ? 'Keine Einträge vorhanden' : 'Keine Einträge gefunden'}
+                </MotionDiv>
               )}
-            </TableBody>
-          </Table>
+              <PaginationControls />
+            </div>
+          ) : (
+            <div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Beleg</TableHead>
+                    <TableHead>Datum</TableHead>
+                    <TableHead>Kategorie</TableHead>
+                    <TableHead>Beschreibung</TableHead>
+                    <TableHead className="text-right">Betrag</TableHead>
+                    <TableHead className="text-right">KM</TableHead>
+                    <TableHead className="text-right">Aktionen</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <AnimatePresence mode="popLayout">
+                    {paginatedExpenses.map((entry, index) => (
+                      <MotionTr
+                        key={entry.id}
+                        layout
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ 
+                          duration: 0.8, // Increased from 0.6
+                          delay: index * 0.25, // Increased from 0.15
+                          ease: "easeOut"
+                        }}
+                        className="relative"
+                      >
+                        <TableCell>
+                          <MotionDiv
+                            whileHover={{ scale: 1.05 }}
+                            className="h-12 w-12 relative rounded overflow-hidden cursor-pointer"
+                            onClick={() => setSelectedImage(entry.image)}
+                          >
+                            <Image
+                              src={entry.image}
+                              alt="Beleg"
+                              fill
+                              className="object-cover"
+                            />
+                          </MotionDiv>
+                        </TableCell>
+                        <TableCell>
+                          {formatDate(entry.date)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {(() => {
+                              const category = EXPENSE_CATEGORIES.find(c => c.value === entry.category)
+                              if (category) {
+                                const Icon = category.icon
+                                return (
+                                  <>
+                                    <Icon className="h-4 w-4" />
+                                    {category.label}
+                                  </>
+                                )
+                              }
+                              return entry.category
+                            })()}
+                          </div>
+                        </TableCell>
+                        <TableCell>{entry.description}</TableCell>
+                        <TableCell className="text-right">
+                          {entry.amount.toFixed(2)} €
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {entry.category === 'travel' && entry.kilometers ? 
+                            `${entry.kilometers.toFixed(1)} km` : 
+                            '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(entry.id)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(entry.id)}
+                              disabled={deletingId === entry.id}
+                            >
+                              {deletingId === entry.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </MotionTr>
+                    ))}
+                  </AnimatePresence>
+                  {filteredExpenses.length === 0 && (
+                    <MotionTr
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <TableCell colSpan={6} className="text-center py-8">
+                        {expenses.length === 0 ? 'Keine Einträge vorhanden' : 'Keine Einträge gefunden'}
+                      </TableCell>
+                    </MotionTr>
+                  )}
+                </TableBody>
+              </Table>
+              <PaginationControls />
+            </div>
+          )}
         </CardContent>
       </Card>
       <EditModal

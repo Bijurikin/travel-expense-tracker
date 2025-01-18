@@ -1,19 +1,21 @@
 "use client"
 
-import { TrendingUp, TrendingDown } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis, ResponsiveContainer } from "recharts"
+// Remove TrendingUp, TrendingDown from imports
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useExpenseStore } from "@/lib/store"
 import { startOfMonth, endOfMonth, subMonths, format, startOfWeek, endOfWeek, getISOWeek, eachDayOfInterval } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState } from "react"
+import { useMediaQuery } from "@/hooks/use-media-query"
 
 type TimeFrame = 'week' | 'month' | '3months' | '6months' | '12months'
 
 export function ExpenseAnalytics() {
   const { expenses } = useExpenseStore()
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('month')
+  const isMobile = useMediaQuery("(max-width: 768px)")
 
   const getTimeFrameData = () => {
     const now = new Date()
@@ -80,9 +82,10 @@ export function ExpenseAnalytics() {
     }
   })
 
-  const currentMonth = chartData[chartData.length - 1]?.amount ?? 0
-  const previousMonth = chartData[chartData.length - 2]?.amount ?? 0
-  const trend = previousMonth ? ((currentMonth - previousMonth) / previousMonth) * 100 : 0
+  // Remove these unused calculations
+  // const currentMonth = chartData[chartData.length - 1]?.amount ?? 0
+  // const previousMonth = chartData[chartData.length - 2]?.amount ?? 0
+  // const trend = previousMonth ? ((currentMonth - previousMonth) / previousMonth) * 100 : 0
 
   // Neue Berechnungen für Statistiken
   const calculateStats = () => {
@@ -133,10 +136,14 @@ export function ExpenseAnalytics() {
           <SelectContent>
             <SelectItem value="week">Diese Woche</SelectItem>
             <SelectItem value="month">Dieser Monat</SelectItem>
-              <SelectItem value="3months">3 Monate</SelectItem>
-              <SelectItem value="6months">6 Monate</SelectItem>
-              <SelectItem value="12months">12 Monate</SelectItem>
-            </SelectContent>
+            <SelectItem value="3months">3 Monate</SelectItem>
+            {!isMobile && (
+              <>
+                <SelectItem value="6months">6 Monate</SelectItem>
+                <SelectItem value="12months">12 Monate</SelectItem>
+              </>
+            )}
+          </SelectContent>
         </Select>
       </CardHeader>
       <CardContent>
@@ -205,20 +212,7 @@ export function ExpenseAnalytics() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
-            {trend !== 0 && (
-              <>
-                <span className="font-medium">
-                  {trend > 0 ? 'Anstieg' : 'Rückgang'} um {Math.abs(trend).toFixed(1)}% zum Vormonat
-                </span>
-                {trend > 0 ? (
-                  <TrendingUp className="h-4 w-4" />
-                ) : (
-                  <TrendingDown className="h-4 w-4" />
-                )}
-              </>
-            )}
-          </div>
+          {/* Remove the trend display div completely */}
         </div>
       </CardContent>
     </Card>

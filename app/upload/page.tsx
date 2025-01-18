@@ -59,7 +59,8 @@ export default function UploadPage() {
     category: '',
     description: '',
     image: '',
-    date: new Date()
+    date: new Date(),
+    kilometers: ''
   })
   const [alert, setAlert] = useState<{
     type: 'success' | 'error';
@@ -118,7 +119,8 @@ export default function UploadPage() {
         category: formData.category,
         description: formData.description,
         image: preview || '',
-        date: formData.date.toISOString()
+        date: formData.date.toISOString(),
+        kilometers: formData.kilometers ? parseFloat(formData.kilometers) : undefined
       }
       
       await addExpense(newExpense)
@@ -328,6 +330,21 @@ export default function UploadPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {formData.category === 'travel' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="kilometers">Kilometer (optional)</Label>
+                    <Input 
+                      id="kilometers" 
+                      type="number" 
+                      min="0"
+                      step="0.1"
+                      placeholder="0.0"
+                      value={formData.kilometers}
+                      onChange={(e) => setFormData(prev => ({ ...prev, kilometers: e.target.value }))}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="description">Beschreibung</Label>

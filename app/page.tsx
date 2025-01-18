@@ -10,17 +10,20 @@ import { useAuthStore } from '@/lib/auth-store';
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ExpenseAnalytics } from "@/components/dashboard/expense-analytics";
+import { pageVariants, staggerContainer, staggerItem } from "@/components/ui/animations";
+import { EXPENSE_CATEGORIES } from "@/lib/constants";
+import { formatDate } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 const MotionDiv = motion.div;
 
 const fallbackImageUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN88B8AAsUB4ZtvXtIAAAAASUVORK5CYII=";
 
 export default function Home() {
-  const { expenses, fetchExpenses } = useExpenseStore();
+  const { expenses, isLoading, fetchExpenses } = useExpenseStore();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   useEffect(() => {
-    console.log('Authentication state:', isAuthenticated); // Debug log
     if (isAuthenticated) {
       fetchExpenses();
     }
@@ -35,8 +38,23 @@ export default function Home() {
     return null;
   }
 
+  // Add loading state handling
+  if (isLoading) {
+    return (
+      <div className="container py-10 flex justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="container py-10">
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      className="container py-10"
+    >
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Reisekosten Dashboard</h1>
         <Link href="/upload">
@@ -48,30 +66,40 @@ export default function Home() {
       </div>
 
       {expenses.length === 0 ? (
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle>Keine Einträge vorhanden</CardTitle>
-            <CardDescription>
-              Fügen Sie Ihre erste Reiseausgabe hinzu
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center py-8">
-            <Link href="/upload">
-              <Button size="lg">
-                <PlusCircle className="mr-2 h-5 w-5" />
-                Erste Ausgabe erfassen
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>Keine Einträge vorhanden</CardTitle>
+              <CardDescription>
+                Fügen Sie Ihre erste Reiseausgabe hinzu
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center py-8">
+              <Link href="/upload">
+                <Button size="lg">
+                  <PlusCircle className="mr-2 h-5 w-5" />
+                  Erste Ausgabe erfassen
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </motion.div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          animate="show"
+          className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+        >
           {latestExpenses.map((expense) => (
-            <MotionDiv
+            <motion.div
               key={expense.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ y: -5 }}
+              variants={staggerItem}
+              whileHover={{ y: -5, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               <Link href="/entries">
                 <Card className="overflow-hidden cursor-pointer">
@@ -86,13 +114,23 @@ export default function Home() {
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="font-semibold">{expense.category}</p>
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const category = EXPENSE_CATEGORIES.find(c => c.value === expense.category)
+                            if (category) {
+                              const Icon = category.icon
+                              return (
+                                <>
+                                  <Icon className="h-4 w-4" />
+                                  <p className="font-semibold">{category.label}</p>
+                                </>
+                              )
+                            }
+                            return expense.category
+                          })()}
+                        </div>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(expense.date).toLocaleDateString('de-DE', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit'
-                          })}
+                          {formatDate(expense.date)}
                         </p>
                       </div>
                       <p className="font-bold">{expense.amount.toFixed(2)} €</p>
@@ -105,7 +143,7 @@ export default function Home() {
                   </CardContent>
                 </Card>
               </Link>
-            </MotionDiv>
+            </motion.div>
           ))}
           {expenses.length > 3 && (
             <MotionDiv
@@ -126,10 +164,10 @@ export default function Home() {
               </Link>
             </MotionDiv>
           )}
-        </div>
+        </motion.div>
       )}
 
       {expenses.length > 0 && <ExpenseAnalytics />}
-    </div>
+    </motion.div>
   );
 }
