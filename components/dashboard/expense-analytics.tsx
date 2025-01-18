@@ -22,13 +22,17 @@ export function ExpenseAnalytics() {
     
     switch(timeFrame) {
       case 'week':
-        const weekStart = startOfWeek(now, { weekStartsOn: 1 })
-        const weekEnd = endOfWeek(now, { weekStartsOn: 1 })
-        // Für die Wochenansicht geben wir jeden Tag zurück
-        return eachDayOfInterval({ start: weekStart, end: weekEnd }).map(day => ({
-          start: day,
-          end: day
-        }))
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 }) // Monday as start
+        const weekEnd = endOfWeek(now, { weekStartsOn: 1 })   // Sunday as end
+        return eachDayOfInterval({ start: weekStart, end: weekEnd }).map(day => {
+          const dayStart = new Date(day.setHours(0, 0, 0, 0))
+          const dayEnd = new Date(day.setHours(23, 59, 59, 999))
+          return {
+            start: dayStart,
+            end: dayEnd,
+            label: format(day, 'EEEEEE', { locale: de }) // Short day name
+          }
+        })
       
       case 'month':
         const monthStart = startOfMonth(now)
@@ -64,7 +68,7 @@ export function ExpenseAnalytics() {
     }
   }
 
-  const chartData = getTimeFrameData().map(({ start, end }) => {
+  const chartData = getTimeFrameData().map(({ start, end, label }) => {
     const periodTotal = expenses
       .filter(expense => {
         const expenseDate = new Date(expense.date)
@@ -74,7 +78,7 @@ export function ExpenseAnalytics() {
 
     return {
       month: timeFrame === 'week'
-        ? format(start, 'EEEEEE', { locale: de }) // Kurzer Wochentag
+        ? label // Use the short day name for week view
         : timeFrame === 'month'
         ? `KW ${getISOWeek(start)}` // Kalenderwoche
         : format(start, 'MMM', { locale: de }), // Monat
