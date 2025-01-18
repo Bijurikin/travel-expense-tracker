@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useState, useEffect } from "react"
 import { Loader2 } from "lucide-react"
+import { EXPENSE_CATEGORIES } from "@/lib/constants"
 
 interface EditModalProps {
   expense: Expense | null
@@ -76,13 +77,34 @@ export function EditModal({ expense, open, onOpenChange, onSave }: EditModalProp
               onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Kategorie wählen" />
+                <SelectValue placeholder="Kategorie wählen">
+                  {formData.category && (
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const category = EXPENSE_CATEGORIES.find(c => c.value === formData.category)
+                        if (category) {
+                          const Icon = category.icon
+                          return (
+                            <>
+                              <Icon className="h-4 w-4" />
+                              {category.label}
+                            </>
+                          )
+                        }
+                      })()}
+                    </div>
+                  )}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="travel">Reise</SelectItem>
-                <SelectItem value="accommodation">Unterkunft</SelectItem>
-                <SelectItem value="food">Verpflegung</SelectItem>
-                <SelectItem value="other">Sonstiges</SelectItem>
+                {EXPENSE_CATEGORIES.map((category) => (
+                  <SelectItem key={category.value} value={category.value}>
+                    <div className="flex items-center gap-2">
+                      <category.icon className="h-4 w-4" />
+                      {category.label}
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

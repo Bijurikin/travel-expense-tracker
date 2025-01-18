@@ -1,284 +1,245 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  PieChart, Pie, ResponsiveContainer, Cell, Legend, Tooltip,
-  LineChart, Line, XAxis, YAxis, CartesianGrid
-} from "recharts"
+import { TrendingUp, TrendingDown } from "lucide-react"
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis, ResponsiveContainer } from "recharts"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useExpenseStore } from "@/lib/store"
-import {
-  startOfWeek, endOfWeek, startOfMonth, endOfMonth,
-  startOfYear, endOfYear, isWithinInterval, format,
-  eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval,
-} from 'date-fns'
+import { startOfMonth, endOfMonth, subMonths, format, startOfWeek, endOfWeek, getWeek, getISOWeek, eachDayOfInterval } from 'date-fns'
 import { de } from 'date-fns/locale'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState } from "react"
+import { EXPENSE_CATEGORIES } from "@/lib/constants"
 
-type TimeRange = 'week' | 'month' | 'year'
-
-const formatCategory = (category: string) => {
-  const categoryMap: Record<string, string> = {
-    travel: 'Reise',
-    accommodation: 'Unterkunft',
-    food: 'Verpflegung',
-    other: 'Sonstiges'
-  }
-  return categoryMap[category] || category
-}
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+type TimeFrame = 'week' | 'month' | '3months' | '6months' | '12months'
 
 export function ExpenseAnalytics() {
   const { expenses } = useExpenseStore()
+  const [timeFrame, setTimeFrame] = useState<TimeFrame>('month')
 
-  const getFilteredExpenses = (range: TimeRange) => {
-    const now = new Date()
-    let start: Date
-    let end: Date
+  const formatCategory = (category: string) => {
+    const found = EXPENSE_CATEGORIES.find(c => c.value === category)
+    return found ? found.label : category
+  }
 
-    switch (range) {
+  const formatPeriodLabel = (start: Date, end: Date, timeFrameType: TimeFrame): string => {
+    switch(timeFrameType) {
       case 'week':
-        start = startOfWeek(now, { locale: de })
-        end = endOfWeek(now, { locale: de })
-        break
+        // Für die aktuelle Woche zeigen wir die Wochentage an
+        return `${format(start, 'EEEEEE', { locale: de })} - ${format(end, 'EEEEEE', { locale: de })}`
       case 'month':
-        start = startOfMonth(now)
-        end = endOfMonth(now)
-        break
-      case 'year':
-        start = startOfYear(now)
-        end = endOfYear(now)
-        break
+        // Für den aktuellen Monat zeigen wir den Monat mit KW
+        return `${format(start, 'MMM', { locale: de })} (KW ${getISOWeek(start)})`
       default:
-        start = startOfWeek(now, { locale: de })
-        end = endOfWeek(now, { locale: de })
-    }
-
-    return expenses.filter(expense => 
-      isWithinInterval(new Date(expense.date), { start, end })
-    )
-  }
-
-  const getCategoryData = (range: TimeRange) => {
-    const filtered = getFilteredExpenses(range)
-    const categoryMap = new Map<string, number>()
-
-    filtered.forEach(expense => {
-      const current = categoryMap.get(expense.category) || 0
-      categoryMap.set(expense.category, current + expense.amount)
-    })
-
-    return Array.from(categoryMap.entries()).map(([category, amount]) => ({
-      name: formatCategory(category),
-      value: Number(amount.toFixed(2))
-    }))
-  }
-
-  const getTotalAmount = (range: TimeRange) => {
-    return getFilteredExpenses(range)
-      .reduce((sum, expense) => sum + expense.amount, 0)
-      .toFixed(2)
-  }
-
-  // Neue Funktion für die Trendanalyse
-  const getTrendData = (range: TimeRange) => {
-    const now = new Date()
-    let start: Date
-    let end: Date
-
-    switch (range) {
-      case 'week':
-        start = startOfWeek(now, { locale: de, weekStartsOn: 1 })
-        end = endOfWeek(now, { locale: de, weekStartsOn: 1 })
-        return eachDayOfInterval({ start, end }).map(date => ({
-          date: format(date, 'EEEEEE', { locale: de }), // Kurzform des Wochentags
-          amount: getAmountForDate(date)
-        }))
-      case 'month':
-        start = startOfMonth(now)
-        end = endOfMonth(now)
-        return eachWeekOfInterval({ start, end }, { weekStartsOn: 1 }).map(weekStart => ({
-          date: `KW ${format(weekStart, 'w')}`,
-          amount: expenses
-            .filter(expense => {
-              const expenseDate = new Date(expense.date)
-              return isWithinInterval(expenseDate, {
-                start: weekStart,
-                end: endOfWeek(weekStart, { weekStartsOn: 1 })
-              })
-            })
-            .reduce((sum, expense) => sum + expense.amount, 0)
-        }))
-      case 'year':
-        start = startOfYear(now)
-        end = endOfYear(now)
-        return eachMonthOfInterval({ start, end }).map(monthStart => ({
-          date: format(monthStart, 'MMM', { locale: de }),
-          amount: expenses
-            .filter(expense => {
-              const expenseDate = new Date(expense.date)
-              return isWithinInterval(expenseDate, {
-                start: monthStart,
-                end: endOfMonth(monthStart)
-              })
-            })
-            .reduce((sum, expense) => sum + expense.amount, 0)
-        }))
-      default:
-        return []
+        // Für längere Zeiträume nur den Monat
+        return format(start, 'MMM', { locale: de })
     }
   }
 
-  // Hilfsfunktion zur Berechnung der Ausgaben pro Tag
-  const getAmountForDate = (date: Date) => {
-    return expenses
+  const getTimeFrameData = () => {
+    const now = new Date()
+    
+    switch(timeFrame) {
+      case 'week':
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 })
+        const weekEnd = endOfWeek(now, { weekStartsOn: 1 })
+        // Für die Wochenansicht geben wir jeden Tag zurück
+        return eachDayOfInterval({ start: weekStart, end: weekEnd }).map(day => ({
+          start: day,
+          end: day
+        }))
+      
+      case 'month':
+        const monthStart = startOfMonth(now)
+        const monthEnd = endOfMonth(now)
+        // Für die Monatsansicht geben wir die Wochen zurück
+        const weeks = []
+        let current = startOfWeek(monthStart, { weekStartsOn: 1 })
+        
+        while (current <= monthEnd) {
+          const weekEnd = endOfWeek(current, { weekStartsOn: 1 })
+          weeks.push({
+            start: current > monthStart ? current : monthStart,
+            end: weekEnd > monthEnd ? monthEnd : weekEnd
+          })
+          current = new Date(current.getTime() + 7 * 24 * 60 * 60 * 1000)
+        }
+        return weeks
+      
+      default:
+        const monthCount = {
+          '3months': 3,
+          '6months': 6,
+          '12months': 12
+        }[timeFrame]
+
+        return Array.from({ length: monthCount }).map((_, i) => {
+          const date = subMonths(now, i)
+          return {
+            start: startOfMonth(date),
+            end: endOfMonth(date)
+          }
+        }).reverse()
+    }
+  }
+
+  const chartData = getTimeFrameData().map(({ start, end }) => {
+    const periodTotal = expenses
       .filter(expense => {
         const expenseDate = new Date(expense.date)
-        return (
-          expenseDate.getFullYear() === date.getFullYear() &&
-          expenseDate.getMonth() === date.getMonth() &&
-          expenseDate.getDate() === date.getDate()
-        )
+        return expenseDate >= start && expenseDate <= end
       })
       .reduce((sum, expense) => sum + expense.amount, 0)
+
+    return {
+      month: timeFrame === 'week'
+        ? format(start, 'EEEEEE', { locale: de }) // Kurzer Wochentag
+        : timeFrame === 'month'
+        ? `KW ${getISOWeek(start)}` // Kalenderwoche
+        : format(start, 'MMM', { locale: de }), // Monat
+      amount: Number(periodTotal.toFixed(2))
+    }
+  })
+
+  const currentMonth = chartData[chartData.length - 1]?.amount ?? 0
+  const previousMonth = chartData[chartData.length - 2]?.amount ?? 0
+  const trend = previousMonth ? ((currentMonth - previousMonth) / previousMonth) * 100 : 0
+
+  // Neue Berechnungen für Statistiken
+  const calculateStats = () => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth()
+
+    // Monatliche Statistiken
+    const currentMonthExpenses = expenses.filter(expense => {
+      const expenseDate = new Date(expense.date)
+      return expenseDate.getMonth() === currentMonth && 
+             expenseDate.getFullYear() === currentYear
+    })
+    
+    const monthlyTotal = currentMonthExpenses.reduce((sum, expense) => 
+      sum + expense.amount, 0
+    )
+
+    // Jährliche Statistiken
+    const currentYearExpenses = expenses.filter(expense => {
+      const expenseDate = new Date(expense.date)
+      return expenseDate.getFullYear() === currentYear
+    })
+
+    const yearlyTotal = currentYearExpenses.reduce((sum, expense) => 
+      sum + expense.amount, 0
+    )
+
+    const monthlyAverage = yearlyTotal / (currentMonth + 1)
+
+    return {
+      monthlyTotal: monthlyTotal.toFixed(2),
+      yearlyTotal: yearlyTotal.toFixed(2),
+      monthlyAverage: monthlyAverage.toFixed(2)
+    }
   }
 
+  const stats = calculateStats()
+
   return (
-    <Card className="mt-8">
-      <CardHeader>
-        <CardTitle>Ausgabenanalyse</CardTitle>
-        <CardDescription>Überblick über Ihre Ausgaben nach Zeitraum</CardDescription>
+    <Card className="mt-4">
+      <CardHeader className="flex flex-row items-center justify-between pb-4">
+        <CardTitle className="text-base font-medium">Ausgabenentwicklung</CardTitle>
+        <Select value={timeFrame} onValueChange={(value) => setTimeFrame(value as TimeFrame)}>
+          <SelectTrigger className="w-[140px] h-8 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="week">Diese Woche</SelectItem>
+            <SelectItem value="month">Dieser Monat</SelectItem>
+              <SelectItem value="3months">3 Monate</SelectItem>
+              <SelectItem value="6months">6 Monate</SelectItem>
+              <SelectItem value="12months">12 Monate</SelectItem>
+            </SelectContent>
+        </Select>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="week" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="week">Diese Woche</TabsTrigger>
-            <TabsTrigger value="month">Dieser Monat</TabsTrigger>
-            <TabsTrigger value="year">Dieses Jahr</TabsTrigger>
-          </TabsList>
+        <div className="space-y-4">
+          {/* Neue Statistik-Anzeige */}
+          <div className="grid grid-cols-3 gap-4 pb-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Dieser Monat</p>
+              <p className="text-2xl font-bold">{stats.monthlyTotal}€</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Dieses Jahr</p>
+              <p className="text-2xl font-bold">{stats.yearlyTotal}€</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Monatsdurchschnitt</p>
+              <p className="text-2xl font-bold">{stats.monthlyAverage}€</p>
+            </div>
+          </div>
 
-          {(['week', 'month', 'year'] as TimeRange[]).map(range => (
-            <TabsContent key={range} value={range} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Gesamtausgaben
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{getTotalAmount(range)} €</div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Durchschnitt pro Tag
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {(parseFloat(getTotalAmount(range)) / getTrendData(range).length).toFixed(2)} €
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Größte Ausgabe
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {Math.max(...getFilteredExpenses(range).map(e => e.amount), 0).toFixed(2)} €
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Anzahl Belege
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {getFilteredExpenses(range).length}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Ausgabenverteilung */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Ausgabenverteilung nach Kategorie</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
-                        <Pie
-                          data={getCategoryData(range)}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {getCategoryData(range).map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          formatter={(value: number) => [`${value.toFixed(2)} €`, "Betrag"]}
-                        />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-
-                {/* Neue Trend-Visualisierung */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Ausgabentrend</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={getTrendData(range)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="date" 
-                          tick={{ fontSize: 12 }}
-                          interval={0} // Zeigt alle Labels an
-                        />
-                        <YAxis 
-                          tick={{ fontSize: 12 }}
-                          tickFormatter={(value) => `${value} €`}
-                        />
-                        <Tooltip 
-                          formatter={(value: number) => [`${value.toFixed(2)} €`, "Betrag"]}
-                          labelFormatter={(label) => `${label}`}
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="amount" 
-                          stroke="#8884d8" 
-                          strokeWidth={2}
-                          dot={{ r: 4 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          ))}
-        </Tabs>
+          <div className="h-[200px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart 
+                data={chartData} 
+                margin={{ top: 30, right: 15, left: 5, bottom: 5 }}
+              >
+                <CartesianGrid 
+                  strokeDasharray="3 3" 
+                  horizontal={true}
+                  vertical={false}
+                  stroke="var(--border)"
+                  className="dark:opacity-20"
+                />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={10}
+                  fontSize={12}
+                  stroke="currentColor"
+                  className="text-foreground"
+                />
+                <YAxis 
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={12}
+                  tickFormatter={(value) => `${value}€`}
+                  stroke="currentColor"
+                  className="text-foreground"
+                />
+                <Bar 
+                  dataKey="amount" 
+                  fill="hsl(var(--chart-1))"
+                  radius={[8, 8, 0, 0]}
+                >
+                  <LabelList
+                    dataKey="amount"
+                    position="top"
+                    offset={15}
+                    formatter={(value: number) => `${value}€`}
+                    fill="currentColor"
+                    className="text-foreground"
+                    fontSize={12}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+            {trend !== 0 && (
+              <>
+                <span className="font-medium">
+                  {trend > 0 ? 'Anstieg' : 'Rückgang'} um {Math.abs(trend).toFixed(1)}% zum Vormonat
+                </span>
+                {trend > 0 ? (
+                  <TrendingUp className="h-4 w-4" />
+                ) : (
+                  <TrendingDown className="h-4 w-4" />
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   )

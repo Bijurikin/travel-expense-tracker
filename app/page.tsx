@@ -26,6 +26,11 @@ export default function Home() {
     }
   }, [fetchExpenses, isAuthenticated]);
 
+  // Sortiere die Ausgaben nach Datum (neueste zuerst) und nimm die ersten 3
+  const latestExpenses = [...expenses]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 3);
+
   if (!isAuthenticated) {
     return null;
   }
@@ -61,7 +66,7 @@ export default function Home() {
         </Card>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {expenses.map((expense) => (
+          {latestExpenses.map((expense) => (
             <MotionDiv
               key={expense.id}
               initial={{ opacity: 0, y: 20 }}
@@ -102,6 +107,25 @@ export default function Home() {
               </Link>
             </MotionDiv>
           ))}
+          {expenses.length > 3 && (
+            <MotionDiv
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <Link href="/entries">
+                <Card className="overflow-hidden cursor-pointer h-full flex items-center justify-center">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-lg font-medium">
+                      Alle {expenses.length} Belege anzeigen
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Zur vollständigen Übersicht
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </MotionDiv>
+          )}
         </div>
       )}
 
