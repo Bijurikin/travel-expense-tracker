@@ -60,7 +60,7 @@ export default function EntriesPage() {
   }
 
   const filteredExpenses = expenses.filter(expense => {
-    const matchesSearch = expense.description.toLowerCase().includes(filters.search.toLowerCase())
+    const matchesSearch = expense.description?.toLowerCase().includes(filters.search.toLowerCase()) ?? true
     const matchesCategory = filters.category === 'all' || expense.category === filters.category
     const matchesDateRange = (!filters.startDate || new Date(expense.date) >= new Date(filters.startDate)) &&
                            (!filters.endDate || new Date(expense.date) <= new Date(filters.endDate))
