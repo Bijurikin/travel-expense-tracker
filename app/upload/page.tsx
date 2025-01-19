@@ -71,6 +71,7 @@ const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> 
     apiKeyPresent: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
     apiKeyLength: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.length || 0,
     apiKeyPrefix: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.substring(0, 4) || 'none',
+    apiKeyValue: process.env.NEXT_PUBLIC_GEMINI_API_KEY === 'YOUR_API_KEY' ? 'Using placeholder!' : 'Using real key',
     domain: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
     environment: process.env.NODE_ENV,
     netlifyContext: process.env.CONTEXT || 'unknown',
@@ -90,7 +91,7 @@ const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> 
   try {
     console.log('Initializing Gemini API...');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" }); // Korrekter Modellname
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" }); // Korrekter Modellname
 
     const categoriesInfo = EXPENSE_CATEGORIES.map(cat => 
       `${cat.value}: ${cat.label}`

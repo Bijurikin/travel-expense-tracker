@@ -7,12 +7,9 @@
 
 [context.production.environment]
   NEXT_USE_NETLIFY_EDGE = "true"
-  NEXT_PUBLIC_GEMINI_API_KEY = "YOUR_API_KEY"
 
 [context.deploy-preview.environment]
   NEXT_USE_NETLIFY_EDGE = "true"
-  NEXT_PUBLIC_GEMINI_API_KEY = "YOUR_API_KEY"
 
 [context.branch-deploy.environment]
   NEXT_USE_NETLIFY_EDGE = "true"
-  NEXT_PUBLIC_GEMINI_API_KEY = "YOUR_API_KEY"
