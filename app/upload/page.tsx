@@ -59,15 +59,19 @@ interface ReceiptData {
 }
 
 const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> => {
-  console.log('Versuche API-Zugriff...', {
-    env: process.env.NODE_ENV,
-    isDev: process.env.NODE_ENV === 'development',
-    isProd: process.env.NODE_ENV === 'production',
-    hasKey: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
-    keyLength: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.length || 0,
-    domain: window.location.hostname // Zeigt die aktuelle Domain
-  });
+  // Erweiterte Debug-Informationen
+  const netlifyContext = process.env.CONTEXT; // Zeigt die Netlify-Umgebung (production, deploy-preview, etc.)
+  const buildContext = process.env.NODE_ENV; // Zeigt die Build-Umgebung (development, production)
   
+  console.log('Environment Check:', {
+    netlifyContext,
+    buildContext,
+    hasGeminiKey: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+    keyLength: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.length || 0,
+    currentUrl: window.location.href,
+    allEnvVars: Object.keys(process.env), // Zeigt alle verfügbaren Env-Variablen (ohne Werte)
+  });
+
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
     console.error('API Key fehlt - Environment Check:', {
@@ -85,7 +89,7 @@ const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> 
   try {
     console.log('API Key gefunden, initialisiere Gemini...');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
     const categoriesInfo = EXPENSE_CATEGORIES.map(cat => 
       `${cat.value}: ${cat.label}`
