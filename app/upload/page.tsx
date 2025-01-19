@@ -59,19 +59,23 @@ interface ReceiptData {
 }
 
 const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> => {
-  // Log zum Debuggen
-  console.log('API Key vorhanden:', !!process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-  
+  // Besseres Debugging
+  console.log('Versuche API-Zugriff...');
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
-    console.error('Gemini API Key fehlt');
+    console.error('API Key fehlt - Environment Check:', {
+      keyExists: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+      keyLength: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.length || 0,
+      isDevelopment: process.env.NODE_ENV === 'development'
+    });
     toast.error('API Konfigurationsfehler', {
-      description: 'API-Schlüssel nicht gefunden. Stellen Sie sicher, dass die Umgebungsvariable korrekt gesetzt ist.'
+      description: 'API-Schlüssel konnte nicht geladen werden. Umgebungsvariablen überprüfen.'
     });
     return null;
   }
 
   try {
+    console.log('API Key gefunden, initialisiere Gemini...');
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
