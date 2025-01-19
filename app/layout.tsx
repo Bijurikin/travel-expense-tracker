@@ -7,9 +7,16 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Travel Expense Tracker',
-  description: 'Verwalte deine Reisekosten einfach und effizient',
+  description: 'Track and manage your travel expenses efficiently',
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      {
+        url: '/favicon.svg',
+        type: 'image/svg+xml',
+      }
+    ],
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
   },
 }
 
