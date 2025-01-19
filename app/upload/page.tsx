@@ -58,36 +58,37 @@ interface ReceiptData {
   category: string | null;  // Add category to the interface
 }
 
+interface GeminiAPIError extends Error {
+  details?: {
+    domain?: string;
+    reason?: string;
+  };
+}
+
 const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> => {
-  // Erweiterte Debug-Informationen
-  const netlifyContext = process.env.CONTEXT; // Zeigt die Netlify-Umgebung (production, deploy-preview, etc.)
-  const buildContext = process.env.NODE_ENV; // Zeigt die Build-Umgebung (development, production)
-  
-  console.log('Environment Check:', {
-    netlifyContext,
-    buildContext,
-    hasGeminiKey: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
-    keyLength: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.length || 0,
-    currentUrl: window.location.href,
-    allEnvVars: Object.keys(process.env), // Zeigt alle verfügbaren Env-Variablen (ohne Werte)
-  });
+  // Enhanced debugging
+  const debugInfo = {
+    apiKeyPresent: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+    apiKeyLength: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.length || 0,
+    apiKeyPrefix: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.substring(0, 4) || 'none',
+    domain: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
+    environment: process.env.NODE_ENV,
+    netlifyContext: process.env.CONTEXT || 'unknown',
+  };
+
+  console.log('API Debug Info:', debugInfo);
 
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
-    console.error('API Key fehlt - Environment Check:', {
-      keyExists: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
-      keyLength: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.length || 0,
-      isDevelopment: process.env.NODE_ENV === 'development',
-      allEnvVars: process.env // Zeige alle verfügbaren Umgebungsvariablen
-    });
+    console.error('API Key missing or invalid:', debugInfo);
     toast.error('API Konfigurationsfehler', {
-      description: 'API-Schlüssel konnte nicht geladen werden. Umgebungsvariablen überprüfen.'
+      description: `API-Schlüssel fehlt oder ist ungültig. Domain: ${debugInfo.domain}`,
     });
     return null;
   }
 
   try {
-    console.log('API Key gefunden, initialisiere Gemini...');
+    console.log('Initializing Gemini API...');
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
@@ -153,13 +154,15 @@ const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> 
       throw e;
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Detaillierter API Fehler:', {
-      error,
-      message: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined
+    const geminiError = error as GeminiAPIError;
+    console.error('Detailed API Error:', {
+      message: geminiError.message,
+      details: geminiError.details,
+      domain: debugInfo.domain,
     });
-    throw new Error(errorMessage);
+    throw new Error(
+      `API Fehler: ${geminiError.message} (Domain: ${debugInfo.domain})`
+    );
   }
 };
 
