@@ -7,3 +7,4 @@
 
 [build.environment]
   NEXT_USE_NETLIFY_EDGE = "true"
+  NEXT_PUBLIC_GEMINI_API_KEY = ""

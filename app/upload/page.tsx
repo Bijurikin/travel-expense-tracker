@@ -59,11 +59,14 @@ interface ReceiptData {
 }
 
 const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> => {
+  // Log zum Debuggen
+  console.log('API Key vorhanden:', !!process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+  
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
+    console.error('Gemini API Key fehlt');
     toast.error('API Konfigurationsfehler', {
-      icon: <AlertCircle className="h-4 w-4 text-red-500" />,
-      description: 'Gemini API-Schlüssel ist nicht konfiguriert. Bitte kontaktieren Sie den Administrator.'
+      description: 'API-Schlüssel nicht gefunden. Stellen Sie sicher, dass die Umgebungsvariable korrekt gesetzt ist.'
     });
     return null;
   }
