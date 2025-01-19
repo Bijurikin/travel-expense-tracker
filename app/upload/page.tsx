@@ -59,13 +59,13 @@ interface ReceiptData {
 }
 
 const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> => {
-  // Besseres Debugging
   console.log('Versuche API-Zugriff...', {
     env: process.env.NODE_ENV,
     isDev: process.env.NODE_ENV === 'development',
     isProd: process.env.NODE_ENV === 'production',
     hasKey: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
     keyLength: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.length || 0,
+    domain: window.location.hostname // Zeigt die aktuelle Domain
   });
   
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -150,7 +150,11 @@ const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> 
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error analyzing receipt:', errorMessage);
+    console.error('Detaillierter API Fehler:', {
+      error,
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined
+    });
     throw new Error(errorMessage);
   }
 };
