@@ -89,7 +89,7 @@ const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> 
   try {
     console.log('API Key gefunden, initialisiere Gemini...');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
     const categoriesInfo = EXPENSE_CATEGORIES.map(cat => 
       `${cat.value}: ${cat.label}`
