@@ -60,13 +60,21 @@ interface ReceiptData {
 
 const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> => {
   // Besseres Debugging
-  console.log('Versuche API-Zugriff...');
+  console.log('Versuche API-Zugriff...', {
+    env: process.env.NODE_ENV,
+    isDev: process.env.NODE_ENV === 'development',
+    isProd: process.env.NODE_ENV === 'production',
+    hasKey: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+    keyLength: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.length || 0,
+  });
+  
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
     console.error('API Key fehlt - Environment Check:', {
       keyExists: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
       keyLength: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.length || 0,
-      isDevelopment: process.env.NODE_ENV === 'development'
+      isDevelopment: process.env.NODE_ENV === 'development',
+      allEnvVars: process.env // Zeige alle verfügbaren Umgebungsvariablen
     });
     toast.error('API Konfigurationsfehler', {
       description: 'API-Schlüssel konnte nicht geladen werden. Umgebungsvariablen überprüfen.'
