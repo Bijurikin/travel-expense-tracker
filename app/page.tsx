@@ -56,7 +56,7 @@ export default function Home() {
       className="container py-10"
     >
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Reisekosten Dashboard</h1>
+        <h1 className="text-3xl font-bold">Ausgaben Dashboard</h1>
         <Link href="/upload">
           <Button>
             <PlusCircle className="mr-2 h-4 w-4" />

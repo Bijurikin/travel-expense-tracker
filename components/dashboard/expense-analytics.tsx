@@ -9,6 +9,7 @@ import { de } from 'date-fns/locale'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState } from "react"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { formatEuro } from "@/lib/utils";
 
 type TimeFrame = 'week' | 'month' | '3months' | '6months' | '12months'
 
@@ -77,25 +78,20 @@ export function ExpenseAnalytics() {
   const chartData = getTimeFrameData().map(({ start, end, label }) => {
     const periodTotal = expenses
       .filter(expense => {
-        const expenseDate = new Date(expense.date)
-        return expenseDate >= start && expenseDate <= end
+        const expenseDate = new Date(expense.date);
+        return expenseDate >= start && expenseDate <= end;
       })
-      .reduce((sum, expense) => sum + expense.amount, 0)
+      .reduce((sum, expense) => sum + expense.amount, 0);
 
     return {
       month: timeFrame === 'week'
-        ? label ?? format(start, 'EEEEEE', { locale: de }) // Fallback if label is undefined
+        ? label ?? format(start, 'EEEEEE', { locale: de })
         : timeFrame === 'month'
-        ? `KW ${getISOWeek(start)}` // Kalenderwoche
-        : format(start, 'MMM', { locale: de }), // Monat
+        ? `KW ${getISOWeek(start)}`
+        : format(start, 'MMM', { locale: de }),
       amount: Number(periodTotal.toFixed(2))
-    }
-  })
-
-  // Remove these unused calculations
-  // const currentMonth = chartData[chartData.length - 1]?.amount ?? 0
-  // const previousMonth = chartData[chartData.length - 2]?.amount ?? 0
-  // const trend = previousMonth ? ((currentMonth - previousMonth) / previousMonth) * 100 : 0
+    };
+  });
 
   // Neue Berechnungen für Statistiken
   const calculateStats = () => {
@@ -162,15 +158,15 @@ export function ExpenseAnalytics() {
           <div className="grid grid-cols-3 gap-4 pb-4">
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Dieser Monat</p>
-              <p className="text-2xl font-bold">{stats.monthlyTotal}€</p>
+              <p className="text-2xl font-bold">{formatEuro(parseFloat(stats.monthlyTotal))}</p>
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Dieses Jahr</p>
-              <p className="text-2xl font-bold">{stats.yearlyTotal}€</p>
+              <p className="text-2xl font-bold">{formatEuro(parseFloat(stats.yearlyTotal))}</p>
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Monatsdurchschnitt</p>
-              <p className="text-2xl font-bold">{stats.monthlyAverage}€</p>
+              <p className="text-2xl font-bold">{formatEuro(parseFloat(stats.monthlyAverage))}</p>
             </div>
           </div>
 
@@ -200,7 +196,7 @@ export function ExpenseAnalytics() {
                   tickLine={false}
                   axisLine={false}
                   fontSize={12}
-                  tickFormatter={(value) => `${value}€`}
+                  tickFormatter={(value) => formatEuro(value)}
                   stroke="currentColor"
                   className="text-foreground"
                 />
@@ -213,7 +209,7 @@ export function ExpenseAnalytics() {
                     dataKey="amount"
                     position="top"
                     offset={15}
-                    formatter={(value: number) => `${value}€`}
+                    formatter={(value: number) => formatEuro(value)}
                     fill="currentColor"
                     className="text-foreground"
                     fontSize={12}

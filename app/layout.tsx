@@ -37,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="de" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}>
         <ThemeProvider
           attribute="class"
@@ -49,7 +49,24 @@ export default function RootLayout({
             {children}
           </AuthProvider>
         </ThemeProvider>
-        <Toaster />
+        <Toaster 
+          theme="system" 
+          closeButton 
+          position="top-right"
+          toastOptions={{
+            classNames: {
+              toast: "bg-background border border-border text-foreground",
+              title: "text-foreground",
+              description: "text-muted-foreground",
+              actionButton: "text-foreground",
+              cancelButton: "text-foreground",
+              success: "bg-success border-success text-foreground [&_.description]:text-muted-foreground [&_.title]:text-foreground",
+              error: "bg-destructive border-destructive text-foreground [&_.description]:text-muted-foreground [&_.title]:text-foreground",
+              info: "bg-muted border-border text-foreground [&_.description]:text-muted-foreground [&_.title]:text-foreground",
+              warning: "bg-warning border-warning text-foreground [&_.description]:text-muted-foreground [&_.title]:text-foreground",
+            },
+          }}
+        />
       </body>
     </html>
   );

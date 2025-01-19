@@ -13,6 +13,7 @@ import { Expense } from "@/lib/api"
 import { ImagePreview } from "@/components/ui/image-preview"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from "sonner"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +31,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"
 import { cn, formatDate } from "@/lib/utils"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { Checkbox } from "@/components/ui/checkbox"
 
 const MotionDiv = motion.create("div")
 const MotionTr = motion.create("tr")
@@ -52,6 +54,8 @@ export default function EntriesPage() {
   const isMobile = useMediaQuery("(max-width: 768px)")
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
+  const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
+  const [isDeletingMultiple, setIsDeletingMultiple] = useState(false);
 
   useEffect(() => {
     fetchExpenses().finally(() => setIsLoading(false))
@@ -239,6 +243,32 @@ export default function EntriesPage() {
     }
   }
 
+  const handleSelectExpense = (id: string, checked: boolean) => {
+    setSelectedExpenses(prev => 
+      checked ? [...prev, id] : prev.filter(expId => expId !== id)
+    );
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedExpenses(checked ? filteredExpenses.map(exp => exp.id) : []);
+  };
+
+  const handleDeleteSelected = async () => {
+    setIsDeletingMultiple(true);
+    try {
+      // Sequentiell löschen um die Datenbank nicht zu überlasten
+      for (const id of selectedExpenses) {
+        await deleteExpense(id);
+      }
+      toast.success(`${selectedExpenses.length} Belege gelöscht`);
+      setSelectedExpenses([]);
+    } catch {
+      toast.error('Fehler beim Löschen der Belege');
+    } finally {
+      setIsDeletingMultiple(false);
+    }
+  };
+
   const MobileExpenseCard = forwardRef<HTMLDivElement, { entry: Expense }>(
     ({ entry }, ref) => (
       <MotionDiv
@@ -255,6 +285,13 @@ export default function EntriesPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-start gap-4">
+              <Checkbox
+                checked={selectedExpenses.includes(entry.id)}
+                onCheckedChange={(checked) => 
+                  handleSelectExpense(entry.id, checked as boolean)
+                }
+                className="mt-1"
+              />
               <div 
                 className="h-16 w-16 relative rounded overflow-hidden cursor-pointer flex-shrink-0"
                 onClick={() => setSelectedImage(entry.image)}
@@ -354,6 +391,33 @@ export default function EntriesPage() {
           >
             <CardTitle>Ausgabenübersicht</CardTitle>
           </MotionDiv>
+          {selectedExpenses.length > 0 && (
+            <MotionDiv
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center justify-between mt-2 p-2 bg-muted rounded-lg"
+            >
+              <span className="text-sm">
+                {selectedExpenses.length} Belege ausgewählt
+              </span>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteSelected}
+                disabled={isDeletingMultiple}
+              >
+                {isDeletingMultiple ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Ausgewählte löschen
+                  </>
+                )}
+              </Button>
+            </MotionDiv>
+          )}
         </CardHeader>
         <CardContent>
           <MotionDiv
@@ -443,6 +507,15 @@ export default function EntriesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[30px]">
+                      <Checkbox
+                        checked={
+                          filteredExpenses.length > 0 &&
+                          selectedExpenses.length === filteredExpenses.length
+                        }
+                        onCheckedChange={handleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead>Beleg</TableHead>
                     <TableHead>Datum</TableHead>
                     <TableHead>Kategorie</TableHead>
@@ -468,6 +541,14 @@ export default function EntriesPage() {
                         }}
                         className="relative"
                       >
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedExpenses.includes(entry.id)}
+                            onCheckedChange={(checked) => 
+                              handleSelectExpense(entry.id, checked as boolean)
+                            }
+                          />
+                        </TableCell>
                         <TableCell>
                           <MotionDiv
                             whileHover={{ scale: 1.05 }}
@@ -543,7 +624,7 @@ export default function EntriesPage() {
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.2 }}
                     >
-                      <TableCell colSpan={6} className="text-center py-8">
+                      <TableCell colSpan={8} className="text-center py-8">
                         {expenses.length === 0 ? 'Keine Einträge vorhanden' : 'Keine Einträge gefunden'}
                       </TableCell>
                     </MotionTr>

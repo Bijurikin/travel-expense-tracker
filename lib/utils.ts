@@ -12,3 +12,26 @@ export function formatDate(date: string | Date) {
     day: '2-digit'
   })
 }
+
+export async function retry<T>(
+  fn: () => Promise<T>,
+  retries = 3,
+  delay = 1000
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries === 0) throw error;
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return retry(fn, retries - 1, delay * 1.5);
+  }
+}
+
+export function formatEuro(amount: number): string {
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
+}
