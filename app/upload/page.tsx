@@ -25,7 +25,51 @@ import { Switch } from "@/components/ui/switch"
 
 const MotionDiv = motion.div
 
-// Hook, um zu erkennen, ob sich der Nutzer auf einem Mobilgerät befindet
+const AnalyzingIndicator = () => (
+  <div className="relative p-4 border rounded-lg bg-muted/50">
+    <div className="flex items-center gap-4">
+      <div className="relative">
+        <motion.div
+          className="absolute inset-0 rounded-full bg-primary"
+          initial={{ opacity: 0.25, scale: 1 }}
+          animate={{ opacity: 0, scale: 2 }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeOut"
+          }}
+        />
+        <motion.div
+          className="absolute inset-0 rounded-full bg-primary"
+          initial={{ opacity: 0.25, scale: 1 }}
+          animate={{ opacity: 0, scale: 2 }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeOut",
+            delay: 0.75
+          }}
+        />
+        <div className="relative z-10 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+          <Loader2 className="h-4 w-4 text-primary-foreground animate-spin" />
+        </div>
+      </div>
+      <div className="flex-1">
+        <motion.h4
+          className="text-sm font-medium"
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          Beleg wird analysiert
+        </motion.h4>
+        <p className="text-sm text-muted-foreground">
+          KI extrahiert Informationen...
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -64,21 +108,11 @@ interface GeminiAPIError extends Error {
   };
 }
 
-/**
- * Erkennt, ob eine Base64-Datei ein PDF oder ein Bild ist,
- * indem der MIME-Type ausgelesen wird.
- */
 function getMimeTypeFromBase64(base64String: string): string {
-  // Base64-Header sieht z. B. so aus: data:application/pdf;base64,...
   const match = base64String.match(/^data:(.*?);base64,/);
   return match ? match[1] : "application/octet-stream";
 }
 
-/**
- * Analysiert die übergebene Datei (Bild oder PDF) mit Hilfe der Gemini API.
- * Stellt die Daten als inlineData zur Verfügung und erwartet JSON-Antwort
- * mit Betrag, Datum, Beschreibung und Kategorie.
- */
 const analyzeReceipt = async (fileBase64: string): Promise<ReceiptData | null> => {
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
@@ -89,20 +123,9 @@ const analyzeReceipt = async (fileBase64: string): Promise<ReceiptData | null> =
     return null;
   }
 
-  // MIME-Type korrekt ermitteln
   const mimeType = getMimeTypeFromBase64(fileBase64);
 
-  // Debugging-Infos
-  const debugInfo = {
-    apiKeyPresent: !!apiKey,
-    apiKeyLength: apiKey.length || 0,
-    domain: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
-    mimeType
-  };
-  console.log('API Debug Info:', debugInfo);
-
   try {
-    console.log('Initializing Gemini API...');
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
@@ -110,14 +133,13 @@ const analyzeReceipt = async (fileBase64: string): Promise<ReceiptData | null> =
       `${cat.value}: ${cat.label}`
     ).join(', ');
 
-    // Für PDF oder Image nur das Base64 ohne "data:...base64,"-Prefix übergeben
     const base64Data = fileBase64.split(',')[1];
 
     const result = await model.generateContent([
       {
         inlineData: {
           data: base64Data,
-          mimeType: mimeType // "application/pdf" oder "image/jpeg"
+          mimeType
         }
       },
       `Analysiere diesen Beleg im Detail und extrahiere folgende Informationen:
@@ -150,21 +172,18 @@ const analyzeReceipt = async (fileBase64: string): Promise<ReceiptData | null> =
 
     const response = await result.response;
     const text = response.text();
-    console.log('Raw response:', text);
 
     try {
-      // Etwaige ```json ... ``` entfernen
       const cleanedResult = text.replace(/```json\s*|\s*```/g, '').trim();
       const parsed = JSON.parse(cleanedResult);
       
       const data: ReceiptData = {
         amount: parsed.amount ? Number(parseFloat(String(parsed.amount)).toFixed(2)) : null,
         date: parsed.date ? new Date(parsed.date) : null,
-        description: typeof parsed.description === 'string' ? parsed.description : null,
-        category: parsed.category && EXPENSE_CATEGORIES.some(c => c.value === parsed.category) ? parsed.category : null
+        description: parsed.description || null,
+        category: parsed.category || null
       };
 
-      console.log('Parsed data:', data);
       return data;
     } catch (e) {
       console.error('Parsing-Fehler:', e);
@@ -172,101 +191,9 @@ const analyzeReceipt = async (fileBase64: string): Promise<ReceiptData | null> =
     }
   } catch (error) {
     const geminiError = error as GeminiAPIError;
-    console.error('API-Fehler:', {
-      message: geminiError.message,
-      details: geminiError.details,
-    });
+    console.error('API-Fehler:', geminiError.message);
     throw new Error(`API Fehler: ${geminiError.message}`);
   }
-};
-
-// Schrittdarstellung für automatisierten Prozess
-const ProcessingSteps = ({ currentStep }: { currentStep: number }) => {
-  const steps = [
-    { id: 1, title: "Vorbereitung", description: "Beleg wird vorbereitet und analysiert" },
-    { id: 2, title: "Extraktion", description: "Informationen werden extrahiert" },
-    { id: 3, title: "Verarbeitung", description: "Daten werden strukturiert" },
-    { id: 4, title: "Finalisierung", description: "Beleg wird gespeichert" }
-  ];
-
-  return (
-    <div className="space-y-4 mt-4 p-4 bg-muted/50 rounded-lg border">
-      {steps.map((step) => (
-        <div key={step.id} className="flex items-center gap-4">
-          <div className="relative flex items-center justify-center">
-            <div
-              className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500",
-                currentStep > step.id
-                  ? "bg-primary text-primary-foreground"
-                  : currentStep === step.id
-                  ? "bg-primary/20 border-2 border-primary"
-                  : "bg-muted border-2 border-muted-foreground/20"
-              )}
-            >
-              {currentStep > step.id ? (
-                <CheckCircle className="h-4 w-4" />
-              ) : currentStep === step.id ? (
-                <motion.div
-                  className="h-2 w-2 bg-primary rounded-full"
-                  animate={{
-                    scale: [1, 1.5, 1],
-                    opacity: [1, 0.5, 1],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-              ) : (
-                <div className="h-2 w-2 rounded-full bg-muted-foreground/20" />
-              )}
-            </div>
-            {step.id < steps.length && (
-              <motion.div
-                className={cn(
-                  "absolute top-8 w-0.5 h-4",
-                  currentStep > step.id
-                    ? "bg-primary"
-                    : "bg-muted-foreground/20"
-                )}
-                animate={
-                  currentStep === step.id
-                    ? {
-                      backgroundImage: [
-                        "linear-gradient(to bottom, var(--primary) 0%, var(--primary-foreground) 100%)",
-                        "linear-gradient(to bottom, var(--primary) 100%, var(--primary-foreground) 0%)"
-                      ]
-                    }
-                    : {}
-                }
-                transition={{
-                  duration: 1,
-                  repeat: Infinity,
-                  ease: "linear"
-                }}
-              />
-            )}
-          </div>
-          <div className="flex-1">
-            <p className={cn(
-              "font-medium transition-colors duration-200",
-              currentStep >= step.id ? "text-foreground" : "text-muted-foreground"
-            )}>
-              {step.title}
-            </p>
-            <p className={cn(
-              "text-sm transition-colors duration-200",
-              currentStep === step.id ? "text-muted-foreground" : "text-muted-foreground/60"
-            )}>
-              {step.description}
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 };
 
 export default function UploadPage() {
@@ -286,7 +213,7 @@ export default function UploadPage() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [imageQueue, setImageQueue] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
-  const [skipAI, setSkipAI] = useState(true); // KI-Analyse standardmäßig deaktiviert
+  const [skipAI, setSkipAI] = useState(true);
   const [autoProcess, setAutoProcess] = useState(false);
   const [processedData, setProcessedData] = useState<{
     amount: string;
@@ -294,8 +221,7 @@ export default function UploadPage() {
     description: string;
     date: Date;
   } | null>(null);
-  const [processingStep, setProcessingStep] = useState(0);
-  const processingStepsRef = useRef<HTMLDivElement>(null);
+  const processedDataRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (autoProcess) {
@@ -304,13 +230,13 @@ export default function UploadPage() {
   }, [autoProcess]);
 
   useEffect(() => {
-    if (autoProcess && processingStep > 0 && processingStepsRef.current) {
-      processingStepsRef.current.scrollIntoView({ 
+    if (processedData && processedDataRef.current) {
+      processedDataRef.current.scrollIntoView({ 
         behavior: 'smooth',
         block: 'start'
       });
     }
-  }, [autoProcess, processingStep]);
+  }, [processedData]);
 
   const resetForm = async () => {
     setFormData({
@@ -378,10 +304,6 @@ export default function UploadPage() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /**
-   * Liest alle ausgewählten Dateien (Bilder oder PDF) aus und speichert sie in Base64-Form.
-   * Anschließend wird ggf. sofort die KI-Analyse und Weiterverarbeitung angestoßen.
-   */
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -392,8 +314,6 @@ export default function UploadPage() {
     });
 
     try {
-      setProcessingStep(1);
-      // Alle Dateien in Base64 konvertieren
       const fileBase64s = await Promise.all(
         files.map(file => {
           return new Promise<string>((resolve, reject) => {
@@ -411,18 +331,14 @@ export default function UploadPage() {
       setCurrentImageIndex(0);
       
       if (autoProcess) {
-        // Automatisch alle Belege analysieren & speichern
         for (let i = 0; i < fileBase64s.length; i++) {
           const currentFile = fileBase64s[i];
           setPreview(currentFile);
           setCurrentImageIndex(i);
 
           if (!skipAI) {
-            setProcessingStep(2);
             const data = await analyzeReceipt(currentFile);
             if (data) {
-              setProcessingStep(3);
-              // Direkt speichern
               setProcessedData({
                 amount: data.amount?.toString() || '',
                 category: data.category || '',
@@ -430,7 +346,6 @@ export default function UploadPage() {
                 date: data.date || new Date(),
               });
 
-              setProcessingStep(4);
               await addExpense({
                 amount: data.amount || 0,
                 category: data.category || 'other',
@@ -439,30 +354,17 @@ export default function UploadPage() {
                 date: data.date?.toISOString() || new Date().toISOString(),
               });
 
-              toast.success(`Beleg ${i + 1} von ${fileBase64s.length} verarbeitet`, {
-                icon: <CheckCircle className="h-4 w-4 text-green-500" />,
-              });
-
-              // Kurze Pause für die Nutzerfreundlichkeit
-              await new Promise(resolve => setTimeout(resolve, 1500));
-              setProcessingStep(1);
+              toast.success(`Beleg ${i + 1} von ${fileBase64s.length} verarbeitet`);
             }
           } else {
-            // KI deaktiviert
-            toast.info(`Beleg ${i + 1} von ${fileBase64s.length} übersprungen (KI deaktiviert)`, {
-              icon: <Info className="h-4 w-4 text-blue-500" />,
-            });
+            toast.info(`Beleg ${i + 1} von ${fileBase64s.length} übersprungen (KI deaktiviert)`);
           }
         }
         
         setProcessedData(null);
-        setProcessingStep(0);
-        toast.success('Alle Belege wurden verarbeitet', {
-          icon: <CheckCircle className="h-4 w-4 text-green-500" />,
-        });
+        toast.success('Alle Belege wurden verarbeitet');
         router.push('/entries');
       } else {
-        // Nur erster Beleg wird analysiert und ins Formular eingetragen
         if (!skipAI) {
           const extractedData = await analyzeReceipt(firstFile);
           if (extractedData) {
@@ -473,16 +375,12 @@ export default function UploadPage() {
               description: extractedData.description || '',
               category: extractedData.category || ''
             }));
-            toast.success('Erster Beleg analysiert', {
-              icon: <CheckCircle className="h-4 w-4 text-green-500" />,
-              description: 'Automatisch ausgefüllt – bitte prüfen.'
-            });
+            toast.success('Beleg analysiert');
           }
         }
       }
     } catch (error: unknown) {
       toast.error('Fehler beim Laden', {
-        icon: <AlertCircle className="h-4 w-4 text-red-500" />,
         description: error instanceof Error ? error.message : 'Die Belege konnten nicht verarbeitet werden.'
       });
     } finally {
@@ -615,8 +513,6 @@ export default function UploadPage() {
                   className="space-y-2"
                 >
                   <Label>Beleg hinzufügen</Label>
-                  
-                  {/* Versteckte Inputs */}
                   <input 
                     ref={cameraInputRef}
                     type="file"
@@ -634,7 +530,6 @@ export default function UploadPage() {
                     onChange={handleFileSelect}
                   />
 
-                  {/* Button-Gruppe */}
                   <div className="flex gap-2">
                     {isMobile && (
                       <Button
@@ -690,7 +585,6 @@ export default function UploadPage() {
                     </div>
                   </div>
 
-                  {/* Preview */}
                   {preview && (
                     <MotionDiv
                       initial={{ opacity: 0, y: 20 }}
@@ -698,7 +592,6 @@ export default function UploadPage() {
                       transition={{ duration: 0.8 }}
                       className="mt-2 relative group"
                     >
-                      {/* Wenn es ein PDF ist, kein Image-Tag, sondern nur ein kleines PDF-Icon/Label */}
                       {preview.startsWith("data:application/pdf") ? (
                         <div className="p-4 border rounded bg-muted flex items-center justify-between">
                           <div className="text-sm font-medium">PDF-Datei ausgewählt</div>
@@ -744,10 +637,7 @@ export default function UploadPage() {
                     <ProgressDisplay />
                     <div className="text-sm text-muted-foreground">
                       {isAnalyzing ? (
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Beleg wird analysiert...
-                        </div>
+                        <AnalyzingIndicator />
                       ) : (
                         `Beleg ${currentImageIndex + 1} von ${imageQueue.length}`
                       )}
@@ -756,7 +646,10 @@ export default function UploadPage() {
                 )}
 
                 {imageQueue.length > 0 && processedData && (
-                  <div className="mt-4 p-4 border rounded-lg bg-muted">
+                  <div 
+                    ref={processedDataRef}
+                    className="mt-4 p-4 border rounded-lg bg-muted"
+                  >
                     <h3 className="font-medium mb-2">Zuletzt verarbeiteter Beleg:</h3>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
@@ -770,10 +663,7 @@ export default function UploadPage() {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Kategorie:</span>
                         <span className="font-medium">
-                          {(() => {
-                            const category = EXPENSE_CATEGORIES.find(c => c.value === processedData.category);
-                            return category ? category.label : processedData.category;
-                          })()}
+                          {EXPENSE_CATEGORIES.find(c => c.value === processedData.category)?.label || processedData.category}
                         </span>
                       </div>
                       {processedData.description && (
@@ -786,7 +676,6 @@ export default function UploadPage() {
                   </div>
                 )}
 
-                {/* Nur anzeigen, wenn keine automatische Verarbeitung aktiv */}
                 {!autoProcess && (
                   <>
                     <div className="space-y-2">
@@ -901,25 +790,13 @@ export default function UploadPage() {
                         disabled={isSubmitting}
                       >
                         {isSubmitting ? (
-                          <MotionDiv
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                          >
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Wird gespeichert...
-                          </MotionDiv>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
                           'Ausgabe speichern'
                         )}
                       </Button>
                     </MotionDiv>
                   </>
-                )}
-                {autoProcess && processingStep > 0 && (
-                  <div ref={processingStepsRef}>
-                    <ProcessingSteps currentStep={processingStep} />
-                  </div>
                 )}
               </form>
             </CardContent>
