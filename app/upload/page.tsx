@@ -25,7 +25,7 @@ import { Switch } from "@/components/ui/switch"
 
 const MotionDiv = motion.div
 
-// Ersetze die isMobile-Funktion mit einer useIsMobile Hook
+// Hook, um zu erkennen, ob sich der Nutzer auf einem Mobilgerät befindet
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -45,7 +45,6 @@ const useIsMobile = () => {
   return isMobile;
 };
 
-// Add this interface near the top of the file, after imports
 interface ExpenseError {
   message: string;
   code?: string;
@@ -55,7 +54,7 @@ interface ReceiptData {
   amount: number | null;
   date: Date | null;
   description: string | null;
-  category: string | null;  // Add category to the interface
+  category: string | null;
 }
 
 interface GeminiAPIError extends Error {
@@ -65,43 +64,60 @@ interface GeminiAPIError extends Error {
   };
 }
 
-const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> => {
-  // Enhanced debugging
-  const debugInfo = {
-    apiKeyPresent: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
-    apiKeyLength: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.length || 0,
-    apiKeyPrefix: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.substring(0, 4) || 'none',
-    apiKeyValue: process.env.NEXT_PUBLIC_GEMINI_API_KEY === 'YOUR_API_KEY' ? 'Using placeholder!' : 'Using real key',
-    domain: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
-    environment: process.env.NODE_ENV,
-    netlifyContext: process.env.CONTEXT || 'unknown',
-  };
+/**
+ * Erkennt, ob eine Base64-Datei ein PDF oder ein Bild ist,
+ * indem der MIME-Type ausgelesen wird.
+ */
+function getMimeTypeFromBase64(base64String: string): string {
+  // Base64-Header sieht z. B. so aus: data:application/pdf;base64,...
+  const match = base64String.match(/^data:(.*?);base64,/);
+  return match ? match[1] : "application/octet-stream";
+}
 
-  console.log('API Debug Info:', debugInfo);
-
+/**
+ * Analysiert die übergebene Datei (Bild oder PDF) mit Hilfe der Gemini API.
+ * Stellt die Daten als inlineData zur Verfügung und erwartet JSON-Antwort
+ * mit Betrag, Datum, Beschreibung und Kategorie.
+ */
+const analyzeReceipt = async (fileBase64: string): Promise<ReceiptData | null> => {
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
-    console.error('API Key missing or invalid:', debugInfo);
+    console.error('API Key fehlt oder ist ungültig.');
     toast.error('API Konfigurationsfehler', {
-      description: `API-Schlüssel fehlt oder ist ungültig. Domain: ${debugInfo.domain}`,
+      description: 'API-Schlüssel fehlt oder ist ungültig. Bitte prüfen.'
     });
     return null;
   }
 
+  // MIME-Type korrekt ermitteln
+  const mimeType = getMimeTypeFromBase64(fileBase64);
+
+  // Debugging-Infos
+  const debugInfo = {
+    apiKeyPresent: !!apiKey,
+    apiKeyLength: apiKey.length || 0,
+    domain: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
+    mimeType
+  };
+  console.log('API Debug Info:', debugInfo);
+
   try {
     console.log('Initializing Gemini API...');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" }); // Korrekter Modellname
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
     const categoriesInfo = EXPENSE_CATEGORIES.map(cat => 
       `${cat.value}: ${cat.label}`
     ).join(', ');
 
+    // Für PDF oder Image nur das Base64 ohne "data:...base64,"-Prefix übergeben
+    const base64Data = fileBase64.split(',')[1];
+
     const result = await model.generateContent([
       {
         inlineData: {
-          data: imageBase64.split(',')[1],
-          mimeType: "image/jpeg"
+          data: base64Data,
+          mimeType: mimeType // "application/pdf" oder "image/jpeg"
         }
       },
       `Analysiere diesen Beleg im Detail und extrahiere folgende Informationen:
@@ -136,8 +152,8 @@ const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> 
     const text = response.text();
     console.log('Raw response:', text);
 
-    // Clean and parse the response
     try {
+      // Etwaige ```json ... ``` entfernen
       const cleanedResult = text.replace(/```json\s*|\s*```/g, '').trim();
       const parsed = JSON.parse(cleanedResult);
       
@@ -151,23 +167,20 @@ const analyzeReceipt = async (imageBase64: string): Promise<ReceiptData | null> 
       console.log('Parsed data:', data);
       return data;
     } catch (e) {
-      console.error('Failed to parse receipt data:', e);
+      console.error('Parsing-Fehler:', e);
       throw e;
     }
   } catch (error) {
     const geminiError = error as GeminiAPIError;
-    console.error('Detailed API Error:', {
+    console.error('API-Fehler:', {
       message: geminiError.message,
       details: geminiError.details,
-      domain: debugInfo.domain,
     });
-    throw new Error(
-      `API Fehler: ${geminiError.message} (Domain: ${debugInfo.domain})`
-    );
+    throw new Error(`API Fehler: ${geminiError.message}`);
   }
 };
 
-// Füge diese Komponente nach den existierenden Interfaces hinzu
+// Schrittdarstellung für automatisierten Prozess
 const ProcessingSteps = ({ currentStep }: { currentStep: number }) => {
   const steps = [
     { id: 1, title: "Vorbereitung", description: "Beleg wird vorbereitet und analysiert" },
@@ -218,12 +231,16 @@ const ProcessingSteps = ({ currentStep }: { currentStep: number }) => {
                     ? "bg-primary"
                     : "bg-muted-foreground/20"
                 )}
-                animate={currentStep === step.id ? {
-                  backgroundImage: [
-                    "linear-gradient(to bottom, var(--primary) 0%, var(--primary-foreground) 100%)",
-                    "linear-gradient(to bottom, var(--primary) 100%, var(--primary-foreground) 0%)"
-                  ]
-                } : {}}
+                animate={
+                  currentStep === step.id
+                    ? {
+                      backgroundImage: [
+                        "linear-gradient(to bottom, var(--primary) 0%, var(--primary-foreground) 100%)",
+                        "linear-gradient(to bottom, var(--primary) 100%, var(--primary-foreground) 0%)"
+                      ]
+                    }
+                    : {}
+                }
                 transition={{
                   duration: 1,
                   repeat: Infinity,
@@ -253,10 +270,10 @@ const ProcessingSteps = ({ currentStep }: { currentStep: number }) => {
 };
 
 export default function UploadPage() {
-  const router = useRouter()
-  const addExpense = useExpenseStore(state => state.addExpense)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const router = useRouter();
+  const addExpense = useExpenseStore(state => state.addExpense);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [formData, setFormData] = useState({
     amount: '',
@@ -265,11 +282,11 @@ export default function UploadPage() {
     image: '',
     date: new Date(),
     kilometers: ''
-  })
+  });
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [imageQueue, setImageQueue] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
-  const [skipAI, setSkipAI] = useState(true); // Standardmäßig deaktiviert
+  const [skipAI, setSkipAI] = useState(true); // KI-Analyse standardmäßig deaktiviert
   const [autoProcess, setAutoProcess] = useState(false);
   const [processedData, setProcessedData] = useState<{
     amount: string;
@@ -311,7 +328,6 @@ export default function UploadPage() {
       const nextImage = imageQueue[nextIndex];
       setPreview(nextImage);
       
-      // Nur analysieren wenn KI nicht deaktiviert ist
       if (!skipAI) {
         setIsAnalyzing(true);
         try {
@@ -326,22 +342,21 @@ export default function UploadPage() {
             }));
             toast.success('Nächster Beleg analysiert', {
               icon: <CheckCircle className="h-4 w-4 text-green-500" />,
-              description: 'Die Daten wurden automatisch ausgefüllt. Bitte überprüfen Sie die Werte.'
+              description: 'Die Daten wurden automatisch ausgefüllt. Bitte überprüfen.'
             });
           }
         } catch (error: unknown) {
           toast.error('Analyse fehlgeschlagen', {
             icon: <AlertCircle className="h-4 w-4 text-red-500" />,
-            description: error instanceof Error ? error.message : 'Bitte füllen Sie die Felder manuell aus.'
+            description: error instanceof Error ? error.message : 'Bitte Felder manuell ausfüllen.'
           });
         } finally {
           setIsAnalyzing(false);
         }
       } else {
-        // Wenn KI deaktiviert ist, nur Benachrichtigung anzeigen
         toast.info('KI-Analyse übersprungen', {
           icon: <Info className="h-4 w-4 text-blue-500" />,
-          description: 'Bitte füllen Sie die Felder manuell aus.'
+          description: 'Bitte Felder manuell ausfüllen.'
         });
       }
     } else {
@@ -360,50 +375,54 @@ export default function UploadPage() {
     router.push('/entries');
   };
 
-  // Separate refs for camera and file inputs
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Move handleFileSelect inside the component
+  /**
+   * Liest alle ausgewählten Dateien (Bilder oder PDF) aus und speichert sie in Base64-Form.
+   * Anschließend wird ggf. sofort die KI-Analyse und Weiterverarbeitung angestoßen.
+   */
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
     setIsAnalyzing(true);
-    toast.info(`${files.length} Belege werden verarbeitet...`, {
+    toast.info(`${files.length} Beleg(e) werden verarbeitet...`, {
       icon: <Info className="h-4 w-4 text-blue-500" />
     });
 
     try {
-      setProcessingStep(1); // Beleg wird geladen
-      // Verarbeite alle Dateien zu Base64
-      const images = await Promise.all(files.map(file => {
-        return new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      }));
+      setProcessingStep(1);
+      // Alle Dateien in Base64 konvertieren
+      const fileBase64s = await Promise.all(
+        files.map(file => {
+          return new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        })
+      );
 
-      setImageQueue(images);
-      const firstImage = images[0];
-      setPreview(firstImage);
+      setImageQueue(fileBase64s);
+      const firstFile = fileBase64s[0];
+      setPreview(firstFile);
       setCurrentImageIndex(0);
       
       if (autoProcess) {
-        // Automatisch alle Belege verarbeiten
-        for (let i = 0; i < images.length; i++) {
-          const currentImage = images[i];
-          setPreview(currentImage);
-          setCurrentImageIndex(i); // Aktualisiere den Index für den Fortschrittsbalken
-          
+        // Automatisch alle Belege analysieren & speichern
+        for (let i = 0; i < fileBase64s.length; i++) {
+          const currentFile = fileBase64s[i];
+          setPreview(currentFile);
+          setCurrentImageIndex(i);
+
           if (!skipAI) {
-            setProcessingStep(2); // KI-Analyse
-            const data = await analyzeReceipt(currentImage);
+            setProcessingStep(2);
+            const data = await analyzeReceipt(currentFile);
             if (data) {
-              setProcessingStep(3); // Daten verarbeiten
-              // Speichere die verarbeiteten Daten
+              setProcessingStep(3);
+              // Direkt speichern
               setProcessedData({
                 amount: data.amount?.toString() || '',
                 category: data.category || '',
@@ -411,41 +430,41 @@ export default function UploadPage() {
                 date: data.date || new Date(),
               });
 
-              setProcessingStep(4); // Speicherung
+              setProcessingStep(4);
               await addExpense({
                 amount: data.amount || 0,
                 category: data.category || 'other',
                 description: data.description || '',
-                image: currentImage,
+                image: currentFile,
                 date: data.date?.toISOString() || new Date().toISOString(),
               });
-              
-              toast.success(`Beleg ${i + 1} von ${images.length} verarbeitet`, {
+
+              toast.success(`Beleg ${i + 1} von ${fileBase64s.length} verarbeitet`, {
                 icon: <CheckCircle className="h-4 w-4 text-green-500" />,
               });
 
-              // Warte einen Moment, damit der Benutzer die Daten sehen kann
+              // Kurze Pause für die Nutzerfreundlichkeit
               await new Promise(resolve => setTimeout(resolve, 1500));
-              setProcessingStep(1); // Reset für nächsten Beleg
+              setProcessingStep(1);
             }
           } else {
-            // Wenn KI deaktiviert ist, zeige nur den Fortschritt an
-            toast.info(`Beleg ${i + 1} von ${images.length} übersprungen (KI deaktiviert)`, {
+            // KI deaktiviert
+            toast.info(`Beleg ${i + 1} von ${fileBase64s.length} übersprungen (KI deaktiviert)`, {
               icon: <Info className="h-4 w-4 text-blue-500" />,
             });
           }
         }
         
-        // Reset processedData am Ende
         setProcessedData(null);
-        setProcessingStep(0); // Prozess abgeschlossen
+        setProcessingStep(0);
         toast.success('Alle Belege wurden verarbeitet', {
           icon: <CheckCircle className="h-4 w-4 text-green-500" />,
         });
         router.push('/entries');
       } else {
+        // Nur erster Beleg wird analysiert und ins Formular eingetragen
         if (!skipAI) {
-          const extractedData = await analyzeReceipt(firstImage);
+          const extractedData = await analyzeReceipt(firstFile);
           if (extractedData) {
             setFormData(prev => ({
               ...prev,
@@ -456,7 +475,7 @@ export default function UploadPage() {
             }));
             toast.success('Erster Beleg analysiert', {
               icon: <CheckCircle className="h-4 w-4 text-green-500" />,
-              description: 'Die Daten wurden automatisch ausgefüllt. Bitte überprüfen Sie die Werte.'
+              description: 'Automatisch ausgefüllt – bitte prüfen.'
             });
           }
         }
@@ -473,14 +492,13 @@ export default function UploadPage() {
 
   const handleDeleteImage = () => {
     setPreview(null);
-    // Reset file inputs to allow selecting the same file again
     if (cameraInputRef.current) cameraInputRef.current.value = '';
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const validateForm = () => {
     if (!preview) {
-      return { isValid: false, error: "Bitte fügen Sie ein Bild hinzu." }
+      return { isValid: false, error: "Bitte fügen Sie ein Bild oder PDF hinzu." }
     }
     if (!formData.amount) {
       return { isValid: false, error: "Bitte geben Sie einen Betrag ein." }
@@ -489,13 +507,13 @@ export default function UploadPage() {
       return { isValid: false, error: "Bitte wählen Sie eine Kategorie aus." }
     }
     return { isValid: true }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+    e.preventDefault();
+    setIsSubmitting(true);
 
-    const validation = validateForm()
+    const validation = validateForm();
     if (!validation.isValid) {
       toast.error('Fehlerhafte Eingabe', {
         icon: <AlertCircle className="h-4 w-4 text-red-500" />,
@@ -513,29 +531,29 @@ export default function UploadPage() {
         image: preview || '',
         date: formData.date.toISOString(),
         kilometers: formData.kilometers ? parseFloat(formData.kilometers) : undefined
-      }
+      };
       
-      await addExpense(newExpense)
+      await addExpense(newExpense);
       toast.success('Ausgabe erfolgreich gespeichert', {
         icon: <CheckCircle className="h-4 w-4 text-green-500" />,
         description: 'Ihre Ausgabe wurde erfolgreich hinzugefügt.'
       });
 
       if (currentImageIndex < imageQueue.length - 1) {
-        resetForm(); // Move to next receipt
+        resetForm();
       } else {
         setShowSuccessDialog(true);
       }
     } catch (error: unknown) {
-      const expenseError = error as ExpenseError
+      const expenseError = error as ExpenseError;
       toast.error('Fehler beim Speichern', {
         icon: <AlertCircle className="h-4 w-4 text-red-500" />,
         description: expenseError.message || 'Bitte versuchen Sie es später erneut.'
       });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const isMobile = useIsMobile();
 
@@ -568,8 +586,8 @@ export default function UploadPage() {
             duration: 0.8,
             delay: 0.3,
             type: "spring", 
-            stiffness: 100, // Reduziert von 300
-            damping: 20 // Reduziert von 30
+            stiffness: 100,
+            damping: 20
           }}
         >
           <Card>
@@ -585,7 +603,7 @@ export default function UploadPage() {
               >
                 <CardTitle>Neue Ausgabe erfassen</CardTitle>
                 <CardDescription>
-                  Fügen Sie eine neue Reiseausgabe mit Beleg hinzu
+                  Fügen Sie eine neue Reiseausgabe mit Beleg (Bild oder PDF) hinzu
                 </CardDescription>
               </MotionDiv>
             </CardHeader>
@@ -598,7 +616,7 @@ export default function UploadPage() {
                 >
                   <Label>Beleg hinzufügen</Label>
                   
-                  {/* Hidden inputs */}
+                  {/* Versteckte Inputs */}
                   <input 
                     ref={cameraInputRef}
                     type="file"
@@ -610,13 +628,13 @@ export default function UploadPage() {
                   <input 
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
-                    multiple // Enable multiple file selection
+                    accept="image/*,application/pdf"
+                    multiple
                     className="hidden"
                     onChange={handleFileSelect}
                   />
 
-                  {/* Button group */}
+                  {/* Button-Gruppe */}
                   <div className="flex gap-2">
                     {isMobile && (
                       <Button
@@ -653,7 +671,7 @@ export default function UploadPage() {
                       <Switch
                         checked={skipAI}
                         onCheckedChange={setSkipAI}
-                        disabled={isAnalyzing || isSubmitting || autoProcess} // Deaktiviert wenn autoProcess aktiv
+                        disabled={isAnalyzing || isSubmitting || autoProcess}
                       />
                     </div>
 
@@ -672,7 +690,7 @@ export default function UploadPage() {
                     </div>
                   </div>
 
-                  {/* Preview image */}
+                  {/* Preview */}
                   {preview && (
                     <MotionDiv
                       initial={{ opacity: 0, y: 20 }}
@@ -680,26 +698,43 @@ export default function UploadPage() {
                       transition={{ duration: 0.8 }}
                       className="mt-2 relative group"
                     >
-                      <div className="relative h-48">
-                        <Image 
-                          src={preview} 
-                          alt="Preview" 
-                          fill
-                          className="object-contain rounded"
-                        />
-                        {/* Lösch-Button nur anzeigen, wenn kein Auto-Prozess aktiv ist */}
-                        {!autoProcess && (
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon"
-                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={handleDeleteImage}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                      {/* Wenn es ein PDF ist, kein Image-Tag, sondern nur ein kleines PDF-Icon/Label */}
+                      {preview.startsWith("data:application/pdf") ? (
+                        <div className="p-4 border rounded bg-muted flex items-center justify-between">
+                          <div className="text-sm font-medium">PDF-Datei ausgewählt</div>
+                          {!autoProcess && (
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={handleDeleteImage}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="relative h-48">
+                          <Image 
+                            src={preview} 
+                            alt="Preview" 
+                            fill
+                            className="object-contain rounded"
+                          />
+                          {!autoProcess && (
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={handleDeleteImage}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </MotionDiv>
                   )}
                 </MotionDiv>
@@ -751,7 +786,7 @@ export default function UploadPage() {
                   </div>
                 )}
 
-                {/* Formularfelder nur anzeigen, wenn keine automatische Verarbeitung aktiv ist */}
+                {/* Nur anzeigen, wenn keine automatische Verarbeitung aktiv */}
                 {!autoProcess && (
                   <>
                     <div className="space-y-2">
@@ -798,7 +833,7 @@ export default function UploadPage() {
                     <div className="space-y-2">
                       <Label htmlFor="category">Kategorie</Label>
                       <Select 
-                        value={formData.category} // Add this line
+                        value={formData.category}
                         onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
                       >
                         <SelectTrigger>
